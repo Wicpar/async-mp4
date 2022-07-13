@@ -1,24 +1,21 @@
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
-use crate::r#box::mvhd::{MvhdBox};
-use crate::r#box::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRead, PartialBoxWrite};
+use crate::mp4box::mvhd::{MvhdBox};
+use crate::mp4box::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::id::BoxId;
-use crate::r#box::mvex::MvexBox;
-use crate::r#box::r#box::MP4Box;
+use crate::mp4box::mvex::MvexBox;
+use crate::mp4box::rootbox::MP4Box;
 
 pub type MoovBox = MP4Box<Moov>;
-
-pub const MOOV: [u8;4] = *b"moov";
 
 #[derive(Debug, Clone, Default)]
 pub struct Moov {
     pub mvhd: Option<MvhdBox>,
     pub mvex: Option<MvexBox>,
 }
-
 
 impl PartialBox for Moov {
     type ParentData = ();
@@ -28,9 +25,7 @@ impl PartialBox for Moov {
         self.mvex.as_ref().map(IBox::byte_size).unwrap_or(0)
     }
 
-    fn id() -> BoxType {
-        MOOV.into()
-    }
+    const ID: BoxType = BoxType::Id(BoxId(*b"moov"));
 }
 
 #[async_trait]
@@ -43,9 +38,8 @@ impl<R> PartialBoxRead<R> for Moov
 
     async fn read_child(&mut self, header: BoxHeader, reader: &mut R) -> Result<(), MP4Error> {
         match header.id {
-            // god damn rust not allowing b"mvhd"...
-            BoxType::Id(BoxId(crate::r#box::mvhd::MVHD)) => self.mvhd = Some(MvhdBox::read(header, reader).await?),
-            BoxType::Id(BoxId(crate::r#box::mvex::MVEX)) => self.mvex = Some(MvexBox::read(header, reader).await?),
+            MvhdBox::ID => self.mvhd = Some(MvhdBox::read(header, reader).await?),
+            MvexBox::ID => self.mvex = Some(MvexBox::read(header, reader).await?),
             _ => {}
         }
         Ok(())

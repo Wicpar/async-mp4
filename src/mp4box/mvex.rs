@@ -1,11 +1,12 @@
-use crate::r#box::full_box::FullBox;
-use crate::r#box::{PartialBox, PartialBoxRead, PartialBoxWrite};
-use crate::r#box::r#box::MP4Box;
+use crate::mp4box::full_box::FullBox;
+use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
+use crate::mp4box::rootbox::MP4Box;
 use crate::r#type::BoxType;
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
+use crate::id::BoxId;
 
 pub type MvexBox = MP4Box<Mvex>;
 
@@ -23,9 +24,7 @@ impl PartialBox for Mvex {
         0
     }
 
-    fn id() -> BoxType {
-        MVEX.into()
-    }
+    const ID: BoxType = BoxType::Id(BoxId(*b"mvex"));
 }
 
 #[async_trait]

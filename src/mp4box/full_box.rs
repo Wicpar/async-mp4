@@ -3,7 +3,7 @@ use std::ops::Deref;
 use futures::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
-use crate::r#box::{PartialBox, PartialBoxRead, PartialBoxWrite};
+use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use async_trait::async_trait;
 use byteorder_async::{BigEndian, ReaderToByteOrder, WriterToByteOrder};
 use crate::r#type::BoxType;
@@ -62,9 +62,7 @@ impl<P: PartialBox<ParentData=FullBoxData> + FullBoxInfo> PartialBox for FullBox
         FullBoxData::byte_size() + self.inner.byte_size()
     }
 
-    fn id() -> BoxType {
-        P::id()
-    }
+    const ID: BoxType = P::ID;
 }
 
 #[async_trait]

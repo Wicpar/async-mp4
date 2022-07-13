@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use std::io::SeekFrom;
 use std::ops::Deref;
 use futures::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
+use crate::bytes_read::ReadMp4;
+use crate::bytes_write::WriteMp4;
 use crate::error::MalformedBoxError::{ReadingWrongBox, UnknownSizeForUnknownBox};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
@@ -31,7 +33,7 @@ impl<P> MP4Box<P>
         P: PartialBox<ParentData=()>
 {
     fn header(&self) -> BoxHeader {
-        BoxHeader::from_id_and_inner_size(P::id(), self.inner.byte_size())
+        BoxHeader::from_id_and_inner_size(P::ID, self.inner.byte_size())
     }
 }
 
@@ -39,7 +41,7 @@ impl<P> MP4Box<P>
 impl<P, W> BoxWrite<W> for MP4Box<P>
     where
         P: PartialBox<ParentData=()> + PartialBoxWrite<W> + Send + Sync,
-        W: AsyncWrite + Unpin + Send + Sync
+        W: WriteMp4
 {
     async fn write(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
@@ -59,20 +61,18 @@ impl<P> IBox for MP4Box<P>
         self.header().byte_size() + self.inner.byte_size()
     }
 
-    fn id() -> BoxType {
-        P::id()
-    }
+    const ID: BoxType = P::ID;
 }
 
 #[async_trait]
 impl<P, R> BoxRead<R> for MP4Box<P>
     where
         P: PartialBox<ParentData=()> + PartialBoxRead<R> + Send + Sync,
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync
+        R: ReadMp4
 {
     async fn read(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error> {
         let actual = header.id;
-        let  target = Self::id();
+        let  target = Self::ID;
         if actual != target {
             return Err(ReadingWrongBox {actual, target}.into())
         }
