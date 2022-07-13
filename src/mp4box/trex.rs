@@ -5,11 +5,9 @@ use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 use crate::bytes_write::WriteMp4;
 use async_trait::async_trait;
-use byteorder_async::{BigEndian, ReaderToByteOrder};
 use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::bytes_read::ReadMp4;
 use crate::error::MP4Error;
-use crate::header::BoxHeader;
 use crate::id::BoxId;
 
 pub type TrexBox = MP4Box<FullBox<Trex>>;

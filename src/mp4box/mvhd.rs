@@ -1,20 +1,14 @@
-use std::io::SeekFrom;
+
 use std::mem;
 use std::mem::size_of;
-use std::ops::{Div, Mul};
-use chrono::{Date, DateTime, Duration, NaiveDate, NaiveTime, TimeZone, Utc};
-use fixed::{FixedI8, FixedU8};
-use fixed::types::extra::U8;
+use chrono::{ DateTime, Duration, TimeZone, Utc};
 use fixed::types::{I16F16, I8F8};
-use crate::header::BoxHeader;
 use crate::matrix::MP4Matrix;
 use crate::mp4box::full_box::{FullBox, FullBoxData, FullBoxInfo};
 use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::mp4box::rootbox::MP4Box;
 use async_trait::async_trait;
-use byteorder_async::{BigEndian, ReaderToByteOrder, WriteBytesExt};
 use fixed_macro::fixed;
-use futures::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 use crate::bytes_read::ReadMp4;
 use crate::error::MalformedBoxError::UnknownVersion;
 use crate::error::MP4Error;
@@ -99,7 +93,7 @@ impl PartialBox for Mvhd {
 }
 
 #[async_trait]
-impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> PartialBoxRead<R> for Mvhd {
+impl<R: ReadMp4> PartialBoxRead<R> for Mvhd {
     async fn read_data(data: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
         let base_time = base_date();
         let (creation_time, modification_time, timescale, duration) =
@@ -134,13 +128,13 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> PartialBoxRead<R> for Mvhd 
             }
             _ => return Err(UnknownVersion(Self::ID, data.version).into())
         };
-        let rate = I16F16::from_bits(reader.byte_order().read_i32::<BigEndian>().await?);
-        let volume = I8F8::from_bits(reader.byte_order().read_i16::<BigEndian>().await?);
+        let rate = I16F16::from_bits(reader.read_i32().await?);
+        let volume = I8F8::from_bits(reader.read_i16().await?);
         reader.reserved(size_of::<u16>()).await?;
         reader.reserved(size_of::<[u32;2]>()).await?;
         let matrix = MP4Matrix::read(reader).await?;
         reader.reserved(size_of::<[u32;6]>()).await?;
-        let next_track_id = reader.byte_order().read_u32::<BigEndian>().await?;
+        let next_track_id = reader.read_u32().await?;
 
         let creation_time = base_time.clone() + Duration::seconds(creation_time);
         let modification_time = base_time.clone() + Duration::seconds(modification_time);

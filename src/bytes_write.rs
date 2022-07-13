@@ -1,6 +1,6 @@
-use futures::{AsyncWrite, AsyncWriteExt};
+use futures::{AsyncWrite};
 use async_trait::async_trait;
-use byteorder_async::{BigEndian, ByteOrder, WriterToByteOrder};
+use byteorder_async::{BigEndian, WriterToByteOrder};
 use crate::error::MP4Error;
 
 #[async_trait]

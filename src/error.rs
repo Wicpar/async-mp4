@@ -1,6 +1,6 @@
+use std::string::FromUtf8Error;
 use thiserror::Error;
 use crate::r#type::BoxType;
-use crate::id::BoxId;
 
 #[derive(Error, Debug)]
 pub enum MalformedBoxError {
@@ -20,6 +20,8 @@ pub enum MalformedBoxError {
 pub enum MP4Error {
     #[error("IO Error")]
     IO(#[from] std::io::Error),
+    #[error("Bad Utf8 String")]
+    BadUtf8(#[from] FromUtf8Error),
     #[error("Malformed Box")]
     MalformedBox(#[from] MalformedBoxError),
     #[error("unknown data store error")]

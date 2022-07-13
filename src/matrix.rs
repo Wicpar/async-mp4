@@ -1,7 +1,5 @@
-use byteorder_async::{BigEndian, ReaderToByteOrder, WriterToByteOrder};
 use fixed::types::{I16F16, I2F30};
 use fixed_macro::fixed;
-use futures::{AsyncRead, AsyncWrite};
 use crate::bytes_read::ReadMp4;
 use crate::error::MP4Error;
 use crate::bytes_write::WriteMp4;

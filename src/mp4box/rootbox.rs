@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::io::SeekFrom;
 use std::ops::Deref;
-use futures::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
+use futures::AsyncSeekExt;
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::WriteMp4;
 use crate::error::MalformedBoxError::{ReadingWrongBox, UnknownSizeForUnknownBox};
@@ -9,7 +9,6 @@ use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use crate::mp4box::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
-use crate::size::BoxSize;
 use crate::size::BoxSize::Known;
 
 #[derive(Debug, Clone)]

@@ -1,11 +1,12 @@
-use std::mem;
+
 use std::ops::Deref;
-use futures::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt};
+use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use async_trait::async_trait;
-use byteorder_async::{BigEndian, ReaderToByteOrder, WriterToByteOrder};
+use crate::bytes_read::ReadMp4;
+use crate::bytes_write::WriteMp4;
 use crate::r#type::BoxType;
 
 #[derive(Debug, Copy, Clone)]
@@ -20,16 +21,17 @@ impl FullBoxData {
         4
     }
 
-    pub async fn read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<FullBoxData, MP4Error> {
-        let version = reader.byte_order().read_u8().await?;
-        let flags = reader.byte_order().read_u24::<BigEndian>().await?;
+    pub async fn read<R: ReadMp4>(reader: &mut R) -> Result<FullBoxData, MP4Error> {
+        let version = reader.read_u8().await?;
+        let flags = reader.read_u24().await?;
         Ok(Self{version, flags})
     }
 
-    pub async fn write<W: AsyncWrite + Unpin>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        writer.byte_order().write_u8(self.version).await?;
-        writer.byte_order().write_u24::<BigEndian>(self.flags).await?;
-        Ok(4)
+    pub async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        let mut count = 0;
+        count += writer.write_u8(self.version).await?;
+        count += writer.write_u24(self.flags).await?;
+        Ok(count)
     }
 }
 

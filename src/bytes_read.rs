@@ -1,8 +1,8 @@
 use std::io::SeekFrom;
 
 use async_trait::async_trait;
-use byteorder_async::{BigEndian, ByteOrder, WriterToByteOrder};
-use futures::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite};
+use byteorder_async::{BigEndian};
+use futures::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 use byteorder_async::ReaderToByteOrder;
 
 use crate::error::MP4Error;
