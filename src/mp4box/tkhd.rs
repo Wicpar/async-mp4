@@ -2,20 +2,21 @@ use std::mem;
 use std::mem::size_of;
 use chrono::{DateTime, Duration, Utc};
 use crate::id::BoxId;
-use crate::mp4box::full_box::{FullBox, FullBoxData, FullBoxInfo};
-use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
-use crate::mp4box::rootbox::MP4Box;
+use crate::mp4box::box_full::{FullBox, FullBoxData, FullBoxInfo};
+use crate::mp4box::box_root::MP4Box;
 use crate::r#type::BoxType;
 pub use async_trait::async_trait;
 use bitregions::bitregions;
 use fixed::types::I8F8;
 use fixed_macro::fixed;
 use crate::bytes_read::ReadMp4;
+use crate::bytes_reserve::Mp4Reservable;
 use crate::error::MalformedBoxError::UnknownVersion;
 use crate::error::MP4Error;
 use crate::matrix::MP4Matrix;
 use crate::mp4box::mvhd::base_date;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
+use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 
 pub type TkhdBox = MP4Box<FullBox<Tkhd>>;
 
@@ -90,12 +91,11 @@ impl PartialBox for Tkhd {
     fn byte_size(&self) -> usize {
         let version = self.version();
         let mut base = if version == 1 {
-            3 * size_of::<u64>() +
-            2 * size_of::<u32>()
+            <[u64;3]>::BYTE_SIZE + <[u32;2]>::BYTE_SIZE
         } else {
-            5 * size_of::<u32>()
+            <[u32;5]>::BYTE_SIZE
         };
-        base += size_of::<[u32;2]>(); // reserved
+        base += <[u32;2]>::BYTE_SIZE; // reserved
         base += mem::size_of_val(&self.layer);
         base += mem::size_of_val(&self.alternate_group);
         base += mem::size_of_val(&self.volume);
@@ -117,11 +117,11 @@ impl<R: ReadMp4> PartialBoxRead<R> for Tkhd {
             match data.version {
                 0 => {
                     (
-                        reader.read_u32().await? as i64,
-                        reader.read_u32().await? as i64,
-                        reader.read_u32().await?,
-                        reader.reserved(size_of::<u32>()).await?,
-                        Some(reader.read_u32().await?).and_then(|it| {
+                        reader.read::<u32>().await? as i64,
+                        reader.read::<u32>().await? as i64,
+                        reader.read::<u32>().await?,
+                        reader.reserve::<u32>().await?,
+                        Some(reader.read::<u32>().await?).and_then(|it| {
                             if it == u32::MAX {
                                 None
                             } else {
@@ -132,11 +132,11 @@ impl<R: ReadMp4> PartialBoxRead<R> for Tkhd {
                 }
                 1 => {
                     (
-                        reader.read_u64().await? as i64,
-                        reader.read_u64().await? as i64,
-                        reader.read_u32().await?,
-                        reader.reserved(size_of::<u32>()).await?,
-                        Some(reader.read_u64().await?).and_then(|it| {
+                        reader.read::<u64>().await? as i64,
+                        reader.read::<u64>().await? as i64,
+                        reader.read::<u32>().await?,
+                        reader.reserve::<u32>().await?,
+                        Some(reader.read::<u64>().await?).and_then(|it| {
                             if it == u64::MAX {
                                 None
                             } else {
@@ -147,14 +147,14 @@ impl<R: ReadMp4> PartialBoxRead<R> for Tkhd {
                 }
                 _ => return Err(UnknownVersion(Self::ID, data.version).into())
             };
-        reader.reserved(size_of::<[u32;2]>()).await?;
-        let layer = reader.read_i16().await?;
-        let alternate_group = reader.read_i16().await?;
-        let volume = I8F8::from_bits(reader.read_i16().await?);
-        reader.reserved(size_of::<u16>()).await?;
-        let matrix = MP4Matrix::read(reader).await?;
-        let width = reader.read_u32().await?;
-        let height = reader.read_u32().await?;
+        reader.reserve::<[u32;2]>().await?;
+        let layer = reader.read().await?;
+        let alternate_group = reader.read().await?;
+        let volume = I8F8::from_bits(reader.read().await?);
+        reader.reserve::<u16>().await?;
+        let matrix = reader.read().await?;
+        let width = reader.read().await?;
+        let height = reader.read().await?;
 
         let creation_time = base_time.clone() + Duration::seconds(creation_time);
         let modification_time = base_time.clone() + Duration::seconds(modification_time);
@@ -182,34 +182,34 @@ impl<W: WriteMp4> PartialBoxWrite<W> for Tkhd {
         let version = self.version();
         let mut count = 0;
         if version == 0 {
-            count += writer.write_u32(self.creation_time() as _).await?;
-            count += writer.write_u32(self.modification_time() as _).await?;
-            count += writer.write_u32(self.track_id).await?;
-            count += writer.reserved(size_of::<u32>()).await?;
+            count += (self.creation_time() as u32).write(writer).await?;
+            count += (self.modification_time() as u32).write(writer).await?;
+            count += self.track_id.write(writer).await?;
+            count += writer.reserve::<u32>().await?;
             count += if let Some(duration) = self.duration {
-                writer.write_u32(duration as _).await?
+                (duration as u32).write(writer).await?
             } else {
-                writer.write_u32(u32::MAX).await?
+                u32::MAX.write(writer).await?
             }
         } else {
-            count += writer.write_u64(self.creation_time()).await?;
-            count += writer.write_u64(self.modification_time()).await?;
-            count += writer.write_u32(self.track_id).await?;
-            count += writer.reserved(size_of::<u32>()).await?;
+            count += self.creation_time().write(writer).await?;
+            count += self.modification_time().write(writer).await?;
+            count += self.track_id.write(writer).await?;
+            count += writer.reserve::<u32>().await?;
             count += if let Some(duration) = self.duration {
-                writer.write_u64(duration).await?
+                duration.write(writer).await?
             } else {
-                writer.write_u64(u64::MAX).await?
+                u64::MAX.write(writer).await?
             }
         }
-        count += writer.reserved(size_of::<[u32; 2]>()).await?; // reserved
-        count += writer.write_i16(self.layer).await?;
-        count += writer.write_i16(self.alternate_group).await?;
-        count += writer.write_i16(self.volume.to_bits()).await?;
-        count += writer.reserved(size_of::<u16>()).await?; // reserved
+        count += writer.reserve::<[u32; 2]>().await?;
+        count += self.layer.write(writer).await?;
+        count += self.alternate_group.write(writer).await?;
+        count += self.volume.to_bits().write(writer).await?;
+        count += writer.reserve::<u16>().await?;
         count += self.matrix.write(writer).await?;
-        count += writer.write_u32(self.width).await?;
-        count += writer.write_u32(self.height).await?;
+        count += self.width.write(writer).await?;
+        count += self.height.write(writer).await?;
         Ok(count)
     }
 }

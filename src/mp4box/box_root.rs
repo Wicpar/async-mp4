@@ -3,11 +3,11 @@ use std::io::SeekFrom;
 use std::ops::Deref;
 use futures::AsyncSeekExt;
 use crate::bytes_read::ReadMp4;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MalformedBoxError::{ReadingWrongBox, UnknownSizeForUnknownBox};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
-use crate::mp4box::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRead, PartialBoxWrite};
+use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 use crate::size::BoxSize::Known;
 
@@ -79,7 +79,7 @@ impl<P, R> BoxRead<R> for MP4Box<P>
         let size = header.size;
         let mut inner = P::read_data((), reader).await?;
         while !size.ended(start, reader).await? {
-            let header = BoxHeader::read(reader).await?;
+            let header: BoxHeader = reader.read().await?;
             let pos = reader.seek(SeekFrom::Current(0)).await?;
             let size = header.size_minus_self();
             inner.read_child(header, reader).await?;

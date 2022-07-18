@@ -1,14 +1,14 @@
-use crate::mp4box::full_box::{FullBox, FullBoxData, FullBoxInfo};
-use crate::mp4box::rootbox::MP4Box;
+use crate::mp4box::box_full::{FullBox, FullBoxData, FullBoxInfo};
+use crate::mp4box::box_root::MP4Box;
 use bitregions::bitregions;
-use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncSeek, AsyncWrite};
-use crate::bytes_read::ReadMp4;
+use crate::bytes_read::{Mp4Readable, ReadMp4};
 use crate::error::MP4Error;
 use crate::id::BoxId;
+use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 
 pub type TrexBox = MP4Box<FullBox<Trex>>;
 
@@ -69,6 +69,20 @@ bitregions! {
     }
 }
 
+#[async_trait]
+impl Mp4Writable for SampleFlags {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.write(writer).await
+    }
+}
+
+#[async_trait]
+impl Mp4Readable for SampleFlags {
+    async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
+        Ok(Self(reader.read().await?))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Trex {
     pub track_id: u32,
@@ -97,11 +111,11 @@ impl<R> PartialBoxRead<R> for Trex
 
     async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
         Ok(Self {
-            track_id: reader.read_u32().await?,
-            default_sample_description_index: reader.read_u32().await?,
-            default_sample_duration: reader.read_u32().await?,
-            default_sample_size: reader.read_u32().await?,
-            default_sample_flags: reader.read_u32().await?.into()
+            track_id: reader.read().await?,
+            default_sample_description_index: reader.read().await?,
+            default_sample_duration: reader.read().await?,
+            default_sample_size: reader.read().await?,
+            default_sample_flags: reader.read().await?
         })
     }
 }
@@ -112,11 +126,11 @@ impl<W> PartialBoxWrite<W> for Trex
         W: AsyncWrite + Unpin + Send + Sync {
     async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += writer.write_u32(self.track_id).await?;
-        count += writer.write_u32(self.default_sample_description_index).await?;
-        count += writer.write_u32(self.default_sample_duration).await?;
-        count += writer.write_u32(self.default_sample_size).await?;
-        count += writer.write_u32(self.default_sample_flags.into()).await?;
+        count += self.track_id.write(writer).await?;
+        count += self.default_sample_description_index.write(writer).await?;
+        count += self.default_sample_duration.write(writer).await?;
+        count += self.default_sample_size.write(writer).await?;
+        count += self.default_sample_flags.write(writer).await?;
         Ok(count)
     }
 }

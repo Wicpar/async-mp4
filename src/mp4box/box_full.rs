@@ -1,64 +1,70 @@
 
-use std::ops::Deref;
+use std::ops::{BitOr, Deref};
 use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
-use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use async_trait::async_trait;
 use crate::bytes_read::ReadMp4;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
+use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 
 #[derive(Debug, Copy, Clone)]
-pub struct FullBoxData {
+pub struct FullBoxData<F: Default + BitOr + Into<u32> + From<u32>> {
     pub version: u8,
-    pub flags: u32
+    pub flags: F
 }
 
-impl FullBoxData {
+impl<F: Default + BitOr + Into<u32> + From<u32>> FullBoxData<F> {
 
     pub const fn byte_size() -> usize {
         4
     }
 
-    pub async fn read<R: ReadMp4>(reader: &mut R) -> Result<FullBoxData, MP4Error> {
-        let version = reader.read_u8().await?;
-        let flags = reader.read_u24().await?;
+    pub async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
+        let version = reader.read().await?;
+        let flags = reader.read_u24().await?.into();
         Ok(Self{version, flags})
     }
 
     pub async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += writer.write_u8(self.version).await?;
-        count += writer.write_u24(self.flags).await?;
+        count += self.version.write(writer).await?;
+        count += writer.write_u24(self.flags.into()).await?;
         Ok(count)
     }
 }
 
 pub trait FullBoxInfo {
+    type Flag: Default + BitOr;
     fn version(&self) -> u8 {0}
-    fn flags(&self) -> u32 {0}
+    fn flags(&self) -> Self::Flag {Self::Flag::default()}
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct FullBox<P>
+pub struct FullBox<P, F>
     where
-        P: PartialBox<ParentData=FullBoxData> + FullBoxInfo
+        P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
+        F: Default + BitOr + Into<u32> + From<u32>
 {
     pub inner: P,
 }
 
-impl<P> From<P> for FullBox<P>
+impl<P, F> From<P> for FullBox<P, F>
     where
-        P: PartialBox<ParentData=FullBoxData> + FullBoxInfo
+        P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
+        F: Default + BitOr + Into<u32> + From<u32>
 {
     fn from(inner: P) -> Self {
         Self{inner}
     }
 }
 
-impl<P: PartialBox<ParentData=FullBoxData> + FullBoxInfo> PartialBox for FullBox<P> {
+impl<P, F> PartialBox for FullBox<P, F> where
+    P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
+    F: Default + BitOr + Into<u32> + From<u32> {
     type ParentData = ();
+    type ThisData = FullBoxData<F>;
 
     fn byte_size(&self) -> usize {
         FullBoxData::byte_size() + self.inner.byte_size()
@@ -68,7 +74,10 @@ impl<P: PartialBox<ParentData=FullBoxData> + FullBoxInfo> PartialBox for FullBox
 }
 
 #[async_trait]
-impl<P: PartialBox<ParentData=FullBoxData> + PartialBoxRead<R> + FullBoxInfo + Send + Sync, R: AsyncRead + AsyncSeek + Unpin + Send + Sync> PartialBoxRead<R> for FullBox<P> {
+impl<P, F, R> PartialBoxRead<R> for FullBox<P, F> where
+    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxRead<R> + FullBoxInfo + Send + Sync,
+    F: Default + BitOr + Into<u32> + From<u32>,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync {
     async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
         let data = FullBoxData::read(reader).await?;
         let inner = P::read_data(data, reader).await?;
@@ -81,7 +90,10 @@ impl<P: PartialBox<ParentData=FullBoxData> + PartialBoxRead<R> + FullBoxInfo + S
 }
 
 #[async_trait]
-impl<P: PartialBox<ParentData=FullBoxData> + PartialBoxWrite<W> + FullBoxInfo + Send + Sync, W: AsyncWrite + Unpin + Send + Sync> PartialBoxWrite<W> for FullBox<P> {
+impl<P, F, W> PartialBoxWrite<W> for FullBox<P, F> where
+    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxWrite<W> + FullBoxInfo + Send + Sync,
+    F: Default + BitOr + Into<u32> + From<u32>,
+    W: AsyncWrite + Unpin + Send + Sync {
 
     async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
@@ -97,7 +109,11 @@ impl<P: PartialBox<ParentData=FullBoxData> + PartialBoxWrite<W> + FullBoxInfo + 
     }
 }
 
-impl<P: PartialBox<ParentData=FullBoxData> + FullBoxInfo> Deref for FullBox<P> {
+impl<P, F> Deref for FullBox<P, F>
+    where
+        P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
+        F: Default + BitOr + Into<u32> + From<u32>,
+{
     type Target = P;
 
     fn deref(&self) -> &Self::Target {

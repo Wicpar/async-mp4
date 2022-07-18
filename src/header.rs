@@ -1,14 +1,15 @@
 
 use futures::AsyncReadExt;
 use uuid::Uuid;
-use crate::bytes_read::ReadMp4;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_read::{Mp4Readable, ReadMp4};
+use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MP4Error;
 use crate::id::BoxId;
 use crate::r#type::BoxType;
 use crate::size::BoxSize;
 use crate::size::BoxSize::Known;
 use crate::size::BoxSize::Unknown;
+use async_trait::async_trait;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct BoxHeader {
@@ -25,10 +26,6 @@ impl BoxHeader {
         }
     }
 
-    pub fn byte_size(&self) -> usize {
-        self.size.byte_size() + self.id.byte_size()
-    }
-
     pub fn size_minus_self(&self) -> BoxSize {
         match self.size {
             Known(size) => Known(self.byte_size() - size),
@@ -36,21 +33,23 @@ impl BoxHeader {
         }
     }
 
-    pub async fn read<R: ReadMp4>(reader: &mut R) -> Result<BoxHeader, MP4Error> {
-        let size = reader.read_u32().await?;
+}
+
+#[async_trait]
+impl Mp4Readable for BoxHeader {
+    async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
+        let size: u32 = reader.read().await?;
         let id = BoxId::read(reader).await?;
         let size = match size {
             0 => Unknown,
             1 =>  {
-                let size = reader.read_u64().await?;
+                let size: u64 = reader.read().await?;
                 Known(size as _)
             }
             _ => Known(size as _)
         };
         let id = if id == b"uuid" {
-            let mut data = [0u8; 16];
-            reader.read_exact(&mut data).await?;
-            BoxType::UUID(Uuid::from_bytes(data))
+            BoxType::UUID(reader.read().await?)
         } else {
             BoxType::Id(id)
         };
@@ -58,8 +57,16 @@ impl BoxHeader {
             size, id
         })
     }
+}
 
-    pub async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+#[async_trait]
+impl Mp4Writable for BoxHeader {
+    fn byte_size(&self) -> usize {
+        self.size.byte_size() + self.id.byte_size()
+    }
+
+
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let (id, uuid) = match self.id {
             BoxType::Id(id) => (id, None),
             BoxType::UUID(uuid) => (BoxId(*b"uuid"), Some(uuid))
@@ -79,14 +86,28 @@ impl BoxHeader {
             Unknown => (0, None)
         };
         let mut count = 0;
-        count += writer.write_u32(size).await?;
+        count += size.write(writer).await?;
         count += id.write(writer).await?;
-        if let Some(size) = big_size {
-            count += writer.write_u64(size).await?;
-        }
-        if let Some(uuid) = uuid {
-            count += writer.write_all(&uuid.into_bytes()).await?;
-        }
+        count += big_size.write(writer).await?;
+        count += uuid.write(writer).await?;
         Ok(count)
+    }
+}
+
+#[async_trait]
+impl Mp4Readable for Uuid {
+    async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
+        Ok(Uuid::from_bytes(reader.read().await?))
+    }
+}
+
+#[async_trait]
+impl Mp4Writable for Uuid {
+    fn byte_size(&self) -> usize {
+        self.as_bytes().byte_size()
+    }
+
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.as_bytes().write(writer).await
     }
 }

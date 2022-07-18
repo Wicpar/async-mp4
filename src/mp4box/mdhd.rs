@@ -3,17 +3,17 @@ use std::mem::size_of;
 use std::str::FromStr;
 use chrono::{DateTime, Duration, Utc};
 use crate::id::BoxId;
-use crate::mp4box::full_box::{FullBox, FullBoxData, FullBoxInfo};
-use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
-use crate::mp4box::rootbox::MP4Box;
+use crate::mp4box::box_full::{FullBox, FullBoxData, FullBoxInfo};
+use crate::mp4box::box_root::MP4Box;
 use crate::r#type::BoxType;
 pub use async_trait::async_trait;
 use isolanguage_1::LanguageCode;
 use crate::bytes_read::ReadMp4;
 use crate::error::MP4Error;
 use crate::mp4box::mvhd::base_date;
-use crate::bytes_write::WriteMp4;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MalformedBoxError::UnknownVersion;
+use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 
 pub type MdhdBox = MP4Box<FullBox<Mdhd>>;
 
@@ -118,10 +118,10 @@ impl<R: ReadMp4> PartialBoxRead<R> for Mdhd {
             match data.version {
                 0 => {
                     (
-                        reader.read_u32().await? as i64,
-                        reader.read_u32().await? as i64,
-                        reader.read_u32().await?,
-                        Some(reader.read_u32().await?).and_then(|it| {
+                        reader.read::<u32>().await? as i64,
+                        reader.read::<u32>().await? as i64,
+                        reader.read().await?,
+                        Some(reader.read::<u32>().await?).and_then(|it| {
                             if it == u32::MAX {
                                 None
                             } else {
@@ -132,10 +132,10 @@ impl<R: ReadMp4> PartialBoxRead<R> for Mdhd {
                 }
                 1 => {
                     (
-                        reader.read_u64().await? as i64,
-                        reader.read_u64().await? as i64,
-                        reader.read_u32().await?,
-                        Some(reader.read_u64().await?).and_then(|it| {
+                        reader.read::<u64>().await? as i64,
+                        reader.read::<u64>().await? as i64,
+                        reader.read().await?,
+                        Some(reader.read::<u64>().await?).and_then(|it| {
                             if it == u64::MAX {
                                 None
                             } else {
@@ -146,8 +146,8 @@ impl<R: ReadMp4> PartialBoxRead<R> for Mdhd {
                 }
                 _ => return Err(UnknownVersion(Self::ID, data.version).into())
             };
-        let language = U16LanguageCode::from_u16(reader.read_u16().await?);
-        reader.reserved(size_of::<u16>()).await?;
+        let language = U16LanguageCode::from_u16(reader.read().await?);
+        reader.reserve::<u16>().await?;
 
         let creation_time = base_time.clone() + Duration::seconds(creation_time);
         let modification_time = base_time.clone() + Duration::seconds(modification_time);
@@ -169,26 +169,26 @@ impl<W: WriteMp4> PartialBoxWrite<W> for Mdhd {
         let version = self.version();
         let mut count = 0;
         if version == 0 {
-            count += writer.write_u32(self.creation_time() as _).await?;
-            count += writer.write_u32(self.modification_time() as _).await?;
-            count += writer.write_u32(self.timescale).await?;
+            count += (self.creation_time() as u32).write(writer).await?;
+            count += (self.modification_time() as u32).write(writer).await?;
+            count += self.timescale.write(writer).await?;
             count += if let Some(duration) = self.duration {
-                writer.write_u32(duration as _).await?
+                (duration as u32).write(writer).await?
             } else {
-                writer.write_u32(u32::MAX).await?
+                u32::MAX.write(writer).await?
             }
         } else {
-            count += writer.write_u64(self.creation_time()).await?;
-            count += writer.write_u64(self.modification_time()).await?;
-            count += writer.write_u32(self.timescale).await?;
+            count += self.creation_time().write(writer).await?;
+            count += self.modification_time().write(writer).await?;
+            count += self.timescale.write(writer).await?;
             count += if let Some(duration) = self.duration {
-                writer.write_u64(duration).await?
+                duration.write(writer).await?
             } else {
-                writer.write_u64(u64::MAX).await?
+                u64::MAX.write(writer).await?
             }
         }
-        count += writer.write_u16(self.language.as_u16()).await?;
-        count += writer.reserved(size_of::<u16>()).await?; // reserved
+        count += self.language.as_u16().write(writer).await?;
+        count += writer.reserve::<u16>().await?; // reserved
         Ok(count)
     }
 }

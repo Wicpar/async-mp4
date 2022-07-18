@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display, Formatter};
-use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use crate::bytes_read::{Mp4Readable, ReadMp4};
 use crate::error::MP4Error;
+use async_trait::async_trait;
+use crate::bytes_write::{Mp4Writable, WriteMp4};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct BoxId(pub [u8; 4]);
@@ -24,16 +26,23 @@ impl BoxId {
     pub const fn size() -> usize {
         4
     }
+}
 
-    pub async fn read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<BoxId, MP4Error> {
-        let mut data = [0u8; 4];
-        reader.read_exact(&mut data).await?;
-        Ok(Self(data))
+#[async_trait]
+impl Mp4Readable for BoxId {
+    async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
+        Ok(Self(reader.read().await?))
+    }
+}
+
+#[async_trait]
+impl Mp4Writable for BoxId {
+    fn byte_size(&self) -> usize {
+        self.0.byte_size()
     }
 
-    pub async fn write<W: AsyncWrite + Unpin>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        writer.write_all(&self.0).await?;
-        Ok(4)
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.write(writer).await
     }
 }
 

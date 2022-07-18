@@ -1,15 +1,15 @@
 use std::mem::size_of;
 use std::mem::size_of_val;
 use crate::id::BoxId;
-use crate::mp4box::full_box::{FullBox, FullBoxData, FullBoxInfo};
-use crate::mp4box::{PartialBox, PartialBoxRead, PartialBoxWrite};
-use crate::mp4box::rootbox::MP4Box;
+use crate::mp4box::box_full::{FullBox, FullBoxData, FullBoxInfo};
+use crate::mp4box::box_root::MP4Box;
 use crate::r#type::BoxType;
 use async_trait::async_trait;
 use futures::AsyncReadExt;
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::WriteMp4;
 use crate::error::MP4Error;
+use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 
 
 pub type HdlrBox = MP4Box<FullBox<Hdlr>>;
@@ -41,13 +41,12 @@ impl PartialBox for Hdlr {
 #[async_trait]
 impl<R: ReadMp4> PartialBoxRead<R> for Hdlr {
     async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
-        reader.reserved(size_of::<u32>()).await?;
-        let mut handler_type = [0u8; 4];
-        reader.read_exact(&mut handler_type).await?;
-        reader.reserved(size_of::<[u32; 3]>()).await?;
+        reader.reserve::<u32>().await?;
+        let handler_type = reader.read().await?;
+        reader.reserve::<[u32; 3]>().await?;
         let mut name = vec![];
         loop {
-            match reader.read_u8().await? {
+            match reader.read().await? {
                 0 => break,
                 it => name.push(it)
             }
