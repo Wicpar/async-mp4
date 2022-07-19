@@ -23,3 +23,7 @@ pub mod stsd;
 pub mod box_unknown;
 pub mod avc1;
 pub mod avcc;
+pub mod stsc;
+pub mod stco;
+pub mod co64;
+pub mod smhd;
