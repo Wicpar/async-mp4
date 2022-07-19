@@ -1,12 +1,10 @@
-use std::io::SeekFrom;
-use std::mem;
-use std::mem::MaybeUninit;
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use byteorder_async::{BigEndian};
-use futures::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
+use futures::{AsyncRead, AsyncSeek};
 use byteorder_async::ReaderToByteOrder;
-use crate::bytes_reserve::Mp4Reservable;
+use crate::bytes_write::FlagTrait;
 
 use crate::error::MP4Error;
 
@@ -16,12 +14,12 @@ pub trait Mp4Readable: Sized {
 }
 
 #[async_trait]
-pub trait Mp4VersionedReadable<F>: Sized {
+pub trait Mp4VersionedReadable<F: FlagTrait>: Sized {
     async fn versioned_read<R: ReadMp4>(version: u8, flags: F, reader: &mut R) -> Result<Self, MP4Error>;
 }
 
 #[async_trait]
-impl<F, T: Mp4Readable> Mp4VersionedReadable<F> for  T {
+impl<F: FlagTrait, T: Mp4Readable> Mp4VersionedReadable<F> for  T {
     async fn versioned_read<R: ReadMp4>(_: u8, _: F, reader: &mut R) -> Result<Self, MP4Error> {
         T::read(reader).await
     }
@@ -80,19 +78,19 @@ impl Mp4Readable for i64 {
 }
 
 #[async_trait]
-impl<const N: usize, T: Mp4Readable> Mp4Readable for [T; N] {
+impl<const N: usize, T: Mp4Readable + Send + Sync + Debug> Mp4Readable for [T; N] {
     async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
-        let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for i in 0..N {
-            let _ = mem::replace(&mut out[i], T::read(reader).await?);
+        let mut out = vec![];
+        for _ in 0..N {
+            out.push(T::read(reader).await?);
         }
-        Ok(unsafe {mem::transmute(out)})
+        Ok(out.try_into().unwrap())
     }
 }
 
 
 #[async_trait]
-pub trait ReadMp4: AsyncRead + AsyncSeek + Unpin + Send + Sync {
+pub trait ReadMp4: AsyncRead + AsyncSeek + Unpin + Send + Sync + Sized {
 
     #[inline]
     async fn read_u24(&mut self) -> Result<u32, MP4Error> {
@@ -105,14 +103,10 @@ pub trait ReadMp4: AsyncRead + AsyncSeek + Unpin + Send + Sync {
     }
 
     async fn read<T: Mp4Readable>(&mut self) -> Result<T, MP4Error> {
-        T::read(self).await?
+        T::read(self).await
     }
 
-    #[inline]
-    async fn reserve<T: Mp4Reservable>(&mut self) -> Result<(), MP4Error> {
-        self.seek(SeekFrom::Current(T::BYTE_SIZE as i64)).await?;
-        Ok(())
-    }
+    async fn versioned_read<T: Mp4VersionedReadable<F>, F: FlagTrait>(&mut self, version: u8, flags: F) -> Result<T, MP4Error> { T::versioned_read(version, flags, self).await }
 }
 
 impl<T: AsyncRead + AsyncSeek + Unpin + Send + Sync> ReadMp4 for T {}

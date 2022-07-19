@@ -7,7 +7,7 @@ macro_rules! base_box {
 
         #[derive(Debug, Clone)]
         pub struct $name {
-            $($(pub $data_name: $data),*)?
+            $($(pub $data_name: $data,)*)?
             $($(pub $child_name: base_box!(@type $child)),*)?
         }
 
@@ -17,6 +17,7 @@ macro_rules! base_box {
             type ThisData = ();
 
             fn byte_size(&self) -> usize {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
                 $($(self.$data_name.byte_size() +)*)?
                 $($(self.$child_name.byte_size() +)*)? 0
@@ -25,7 +26,7 @@ macro_rules! base_box {
             const ID: $crate::r#type::BoxType = $crate::r#type::BoxType::Id($crate::id::BoxId(*$id));
         }
 
-
+        #[allow(unused_variables, unused_mut, dead_code)]
         #[async_trait::async_trait]
         impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name{
             async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
@@ -36,6 +37,7 @@ macro_rules! base_box {
             }
 
             async fn read_child(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
                 match header.id {
@@ -46,6 +48,7 @@ macro_rules! base_box {
             }
         }
 
+        #[allow(unused_variables, unused_mut, dead_code)]
         #[async_trait::async_trait]
         impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
 
@@ -57,6 +60,7 @@ macro_rules! base_box {
 
 
             async fn write_children(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;
                 $($(count += self.$child_name.write(writer).await?;)*)?
@@ -90,24 +94,31 @@ macro_rules! base_box {
 
 #[macro_export]
 macro_rules! full_box {
-    (box ($id:expr, $name:ident, $box:ident, $flag:ty) $(data { $($data_name:ident: $data:ty),* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
-        pub type $box = $crate::mp4box::box_root::MP4Box<$crate::mp4box::box_full::FullBox<$name>>;
+    (box ($id:expr, $name:ident, $box:ident, $(@save $flag_name:ident :)? $flag:ty) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
+        pub type $box = $crate::mp4box::box_root::MP4Box<$crate::mp4box::box_full::FullBox<$name, $flag>>;
 
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub struct $name {
-            $($(pub $data_name: $data),*)?
+            $($(pub $data_name: $data,)*)?
+            $(pub $flag_name: $flag,)?
             $($(pub $child_name: base_box!(@type $child)),*)?
         }
 
-        impl $crate::mp4box::box_full::FullBoxInfo<$flag> for $name {
+        impl $crate::mp4box::box_full::FullBoxInfo for $name {
+            type Flag = $flag;
+
             fn version(&self) -> u8 {
+                #![allow(unused_imports)]
+                use $crate::bytes_write::Mp4VersionedWritable;
                 full_box!(@max
-                    $($(self.$data_name.required_version()),*)?
+                    $($(Mp4VersionedWritable::<$flag>::required_version(&self.$data_name)),*)?
                 )
             }
 
             fn flags(&self) -> $flag {
-                $($(self.$data_name.required_flags() |)*)? <$flag>::default()
+                #![allow(unused_imports)]
+                use $crate::bytes_write::Mp4VersionedWritable;
+                $($(Mp4VersionedWritable::<$flag>::required_flags(&self.$data_name) |)*)? $(self.$flag_name |)? <$flag>::default()
             }
         }
 
@@ -116,25 +127,35 @@ macro_rules! full_box {
             type ThisData = ();
 
             fn byte_size(&self) -> usize {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
-                $($(self.$data_name.byte_size() +)*)?
+                use $crate::mp4box::box_full::FullBoxInfo;
+                use $crate::bytes_write::Mp4VersionedWritable;
+                let version = self.version();
+                let flags = self.flags();
+                $($(self.$data_name.versioned_byte_size(version, flags) +)*)?
                 $($(self.$child_name.byte_size() +)*)? 0
             }
 
             const ID: $crate::r#type::BoxType = $crate::r#type::BoxType::Id($crate::id::BoxId(*$id));
         }
 
-
+        #[allow(unused_variables, unused_mut, dead_code)]
         #[async_trait::async_trait]
         impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name {
-            async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+
+            async fn read_data(parent: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                let version = parent.version;
+                let flags = parent.flags;
                 Ok(Self {
-                    $($($data_name: reader.read().await?,)*)?
+                    $($flag_name: flags,)?
+                    $($($data_name: reader.versioned_read(version, flags).await?,)*)?
                     $($($child_name: Default::default(),)*)?
                 })
             }
 
             async fn read_child(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
                 match header.id {
@@ -145,16 +166,23 @@ macro_rules! full_box {
             }
         }
 
+        #[allow(unused_variables, unused_mut, dead_code)]
         #[async_trait::async_trait]
         impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
 
-            async fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+            async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
+                #![allow(unused_imports)]
+                use $crate::bytes_write::Mp4VersionedWritable;
+                use $crate::mp4box::box_full::FullBoxInfo;
+                let version = self.version();
+                let flags = self.flags();
                 let mut count = 0;
-                $($(count += self.$data_name.write(writer).await?;)*)?
+                $($(count += self.$data_name.versioned_write(version, flags, writer).await?;)*)?
                 Ok(count)
             }
 
             async fn write_children(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;
                 $($(count += self.$child_name.write(writer).await?;)*)?
@@ -176,7 +204,7 @@ macro_rules! full_box {
         <$child>::ID
     };
 
-    (@read $child_name:expr, $header:ident, $reader:ident, vec $child:ty) => {
+    (@read $child_name:expr, $header:ident, $reader:ident, $version:ident, $flags:ident, vec $child:ty) => {
         $child_name.push(<$child>::read($header, $reader).await?)
     };
 
@@ -199,4 +227,39 @@ macro_rules! full_box {
             min($x, full_box!(@min $($xs),+ ))
         }
     };
+}
+
+
+#[macro_export]
+macro_rules! default_flags {
+    ($name:ident, $default:expr) => {
+        #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
+        pub struct $name(pub u32);
+
+        impl Default for VmhdFlags {
+            fn default() -> Self {
+                Self($default)
+            }
+        }
+
+        impl From<u32> for VmhdFlags {
+            fn from(value: u32) -> Self {
+                Self(value)
+            }
+        }
+
+        impl std::ops::BitOr for VmhdFlags {
+            type Output = Self;
+
+            fn bitor(self, rhs: Self) -> Self::Output {
+                Self(self.0 | rhs.0)
+            }
+        }
+
+        impl From<VmhdFlags> for u32 {
+            fn from(value: VmhdFlags) -> Self {
+                value.0
+            }
+        }
+    }
 }

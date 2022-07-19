@@ -1,9 +1,11 @@
 use std::ops::BitOr;
-use futures::{AsyncWrite, AsyncWriteExt};
 use async_trait::async_trait;
 use byteorder_async::{BigEndian, WriterToByteOrder};
-use crate::bytes_reserve::{Mp4Reservable, Mp4Reserve};
+use futures::AsyncWrite;
 use crate::error::MP4Error;
+
+pub trait FlagTrait: Copy + Default + BitOr + Into<u32> + From<u32> + Send + Sync + 'static {}
+impl<T: Copy + Default + BitOr + Into<u32> + From<u32> + Send + Sync + 'static> FlagTrait for T {}
 
 #[async_trait]
 pub trait Mp4Writable {
@@ -12,7 +14,7 @@ pub trait Mp4Writable {
 }
 
 #[async_trait]
-pub trait Mp4VersionedWritable<F: Default + Send + Sync> {
+pub trait Mp4VersionedWritable<F: FlagTrait> {
     fn required_version(&self) -> u8 {0}
     fn required_flags(&self) -> F {F::default()}
     fn versioned_byte_size(&self, version: u8, flags: F) -> usize;
@@ -20,7 +22,7 @@ pub trait Mp4VersionedWritable<F: Default + Send + Sync> {
 }
 
 #[async_trait]
-impl<F: Default + Send + Sync, T: Mp4Writable + Send + Sync> Mp4VersionedWritable<F> for  T {
+impl<F: FlagTrait, T: Mp4Writable + Send + Sync> Mp4VersionedWritable<F> for  T {
 
     fn versioned_byte_size(&self, _: u8, _: F) -> usize {
         self.byte_size()
@@ -138,14 +140,10 @@ impl<T: Mp4Writable + Send + Sync> Mp4Writable for [T] {
 #[async_trait]
 impl<T: Mp4Writable  + Send + Sync, const N: usize> Mp4Writable for [T; N] {
     fn byte_size(&self) -> usize {
-        self.iter().map(Mp4Writable::byte_size).sum()
+        self.as_slice().byte_size()
     }
     async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        let mut count = 0;
-        for elem in self {
-            count += elem.write(writer).await?;
-        }
-        Ok(count)
+        self.as_slice().write(writer).await
     }
 }
 
@@ -166,14 +164,10 @@ impl <T: Mp4Writable + Send + Sync> Mp4Writable for Option<T> {
 #[async_trait]
 impl <T: Mp4Writable + Send + Sync> Mp4Writable for Vec<T> {
     fn byte_size(&self) -> usize {
-        self.iter().map(Mp4Writable::byte_size).sum()
+        self.as_slice().byte_size()
     }
     async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        let mut count = 0;
-        for elem in self {
-            count += elem.write(writer).await?;
-        }
-        Ok(count)
+        self.as_slice().write(writer).await
     }
 }
 
@@ -190,13 +184,6 @@ pub trait WriteMp4: AsyncWrite + Unpin + Send + Sync + Sized {
     async fn write_i24(&mut self, n: i32) -> Result<usize, MP4Error> {
         self.byte_order().write_i24::<BigEndian>(n).await?;
         Ok(3)
-    }
-
-    #[inline]
-    async fn reserve<T: Mp4Reservable>(&mut self) -> Result<usize, MP4Error> {
-        let buf = [0u8, T::BYTE_SIZE];
-        self.write_all(&buf).await?;
-        Ok(T::BYTE_SIZE)
     }
 }
 

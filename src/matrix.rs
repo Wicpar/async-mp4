@@ -57,6 +57,20 @@ impl Mp4Readable for MP4Matrix {
 
 #[async_trait]
 impl Mp4Writable for MP4Matrix {
+    fn byte_size(&self) -> usize {
+        let mut count = 0;
+        count += self.a.to_bits().byte_size();
+        count += self.b.to_bits().byte_size();
+        count += self.u.to_bits().byte_size();
+        count += self.c.to_bits().byte_size();
+        count += self.d.to_bits().byte_size();
+        count += self.v.to_bits().byte_size();
+        count += self.x.to_bits().byte_size();
+        count += self.y.to_bits().byte_size();
+        count += self.w.to_bits().byte_size();
+        count
+    }
+
     async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         count += self.a.to_bits().write(writer).await?;

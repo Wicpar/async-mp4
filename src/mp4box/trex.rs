@@ -10,7 +10,7 @@ use crate::error::MP4Error;
 use crate::id::BoxId;
 use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 
-pub type TrexBox = MP4Box<FullBox<Trex>>;
+pub type TrexBox = MP4Box<FullBox<Trex, u32>>;
 
 #[repr(u8)]
 pub enum IsLeading {
@@ -71,6 +71,10 @@ bitregions! {
 
 #[async_trait]
 impl Mp4Writable for SampleFlags {
+    fn byte_size(&self) -> usize {
+        self.0.byte_size()
+    }
+
     async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         self.0.write(writer).await
     }
@@ -92,10 +96,11 @@ pub struct Trex {
     pub default_sample_flags: SampleFlags,
 }
 
-impl FullBoxInfo for Trex {}
+impl FullBoxInfo for Trex { type Flag = u32; }
 
 impl PartialBox for Trex {
-    type ParentData = FullBoxData;
+    type ParentData = FullBoxData<u32>;
+    type ThisData = ();
 
     fn byte_size(&self) -> usize {
         5 * 4
