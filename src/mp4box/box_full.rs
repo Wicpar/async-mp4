@@ -1,6 +1,4 @@
-
 use std::ops::{Deref};
-use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use async_trait::async_trait;
@@ -81,28 +79,26 @@ impl<P, F> PartialBox for FullBox<P, F> where
 }
 
 #[async_trait]
-impl<P, F, R> PartialBoxRead<R> for FullBox<P, F> where
-    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxRead<R> + FullBoxInfo + Send + Sync,
-    F: FlagTrait,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync {
-    async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
+impl<P, F> PartialBoxRead for FullBox<P, F> where
+    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxRead + FullBoxInfo + Send + Sync,
+    F: FlagTrait,{
+    async fn read_data<R: ReadMp4>(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
         let data = FullBoxData::read(reader).await?;
         let inner = P::read_data(data, reader).await?;
         Ok(Self { inner })
     }
 
-    async fn read_child(&mut self, header: BoxHeader, reader: &mut R) -> Result<(), MP4Error> {
+    async fn read_child<R: ReadMp4>(&mut self, header: BoxHeader, reader: &mut R) -> Result<(), MP4Error> {
         self.inner.read_child(header, reader).await
     }
 }
 
 #[async_trait]
-impl<P, F, W> PartialBoxWrite<W> for FullBox<P, F> where
-    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxWrite<W> + FullBoxInfo<Flag=F> + Send + Sync,
-    F: FlagTrait,
-    W: AsyncWrite + Unpin + Send + Sync {
+impl<P, F> PartialBoxWrite for FullBox<P, F> where
+    P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxWrite + FullBoxInfo<Flag=F> + Send + Sync,
+    F: FlagTrait, {
 
-    async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    async fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         let version = self.inner.version();
         let flags = self.inner.flags();
@@ -111,7 +107,7 @@ impl<P, F, W> PartialBoxWrite<W> for FullBox<P, F> where
         Ok(count)
     }
 
-    async fn write_children(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    async fn write_children<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         self.inner.write_children(writer).await
     }
 }

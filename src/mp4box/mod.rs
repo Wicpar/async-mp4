@@ -27,3 +27,4 @@ pub mod stsc;
 pub mod stco;
 pub mod co64;
 pub mod smhd;
+pub mod mdat;

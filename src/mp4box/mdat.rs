@@ -1,50 +1,27 @@
-use crate::header::BoxHeader;
-use async_trait::async_trait;
-use futures::{AsyncReadExt};
+use futures::AsyncReadExt;
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MP4Error;
+use crate::header::BoxHeader;
 use crate::id::BoxId;
 use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox};
 use crate::r#type::BoxType;
 use crate::size::BoxSize;
+use async_trait::async_trait;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct UnknownBox
-{
-    pub id: BoxType,
-    pub data: Vec<u8>
-}
+pub struct MdatBox(Vec<u8>);
 
-impl UnknownBox {
-    fn header(&self) -> BoxHeader {
-        BoxHeader::from_id_and_inner_size(self.id, self.data.byte_size())
-    }
-}
-
-#[async_trait]
-impl BoxWrite for UnknownBox
-{
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        let mut count = 0;
-        count += self.header().write(writer).await?;
-        count += self.data.write(writer).await?;
-        Ok(count)
-    }
-}
-
-impl IBox for UnknownBox
-{
+impl IBox for MdatBox {
     fn byte_size(&self) -> usize {
-        self.header().byte_size() + self.data.byte_size()
+        self.0.byte_size()
     }
 
-    const ID: BoxType = BoxType::Id(BoxId(*b"    "));
+    const ID: BoxType = BoxType::Id(BoxId(*b"mdat"));
 }
 
 #[async_trait]
-impl BoxRead for UnknownBox
-{
+impl BoxRead for MdatBox {
     async fn read<R: ReadMp4>(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error> {
         let data = match header.size_minus_self() {
             BoxSize::Known(size) => {
@@ -58,6 +35,16 @@ impl BoxRead for UnknownBox
                 vec
             }
         };
-        Ok(Self { id: header.id, data })
+        Ok(Self(data))
+    }
+}
+
+#[async_trait]
+impl BoxWrite for MdatBox {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        let mut count = 0;
+        count += BoxHeader::from_id_and_inner_size(Self::ID, self.0.len()).write(writer).await?;
+        count += self.0.write(writer).await?;
+        Ok(count)
     }
 }

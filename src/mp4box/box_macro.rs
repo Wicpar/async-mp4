@@ -29,15 +29,15 @@ macro_rules! base_box {
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
-        impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name{
-            async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+        impl $crate::mp4box::box_trait::PartialBoxRead for $name{
+            async fn read_data<R: $crate::bytes_read::ReadMp4>(_: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
                 Ok(Self {
                     $($($data_name: reader.read().await?,)*)?
                     $($($child_name: Default::default(),)*)?
                 })
             }
 
-            async fn read_child(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
+            async fn read_child<R: $crate::bytes_read::ReadMp4>(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
@@ -51,9 +51,9 @@ macro_rules! base_box {
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
-        impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
+        impl $crate::mp4box::box_trait::PartialBoxWrite for $name {
 
-            async fn write_data(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            async fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
                 use $crate::bytes_write::Mp4Writable;
                 $($(count += self.$data_name.write(writer).await?;)*)?
@@ -61,7 +61,7 @@ macro_rules! base_box {
             }
 
 
-            async fn write_children(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            async fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;
@@ -148,9 +148,9 @@ macro_rules! full_box {
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
-        impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name {
+        impl $crate::mp4box::box_trait::PartialBoxRead for $name {
 
-            async fn read_data(parent: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+            async fn read_data<R: $crate::bytes_read::ReadMp4>(parent: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
                 let version = parent.version;
                 let flags = parent.flags;
                 Ok(Self {
@@ -160,7 +160,7 @@ macro_rules! full_box {
                 })
             }
 
-            async fn read_child(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
+            async fn read_child<R: $crate::bytes_read::ReadMp4>(&mut self, header: $crate::header::BoxHeader, reader: &mut R) -> Result<(), $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
@@ -174,9 +174,9 @@ macro_rules! full_box {
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
-        impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
+        impl $crate::mp4box::box_trait::PartialBoxWrite for $name {
 
-            async fn write_data(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            async fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::bytes_write::Mp4VersionedWritable;
                 use $crate::mp4box::box_full::FullBoxInfo;
@@ -187,7 +187,7 @@ macro_rules! full_box {
                 Ok(count)
             }
 
-            async fn write_children(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            async fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;

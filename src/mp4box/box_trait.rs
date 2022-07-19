@@ -27,18 +27,18 @@ impl<T: IBox> IBox for Option<T> {
 }
 
 #[async_trait]
-pub trait BoxRead<R: ReadMp4>: IBox + Sized {
-    async fn read(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error>;
+pub trait BoxRead: IBox + Sized {
+    async fn read<R: ReadMp4>(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error>;
 }
 
 #[async_trait]
-pub trait BoxWrite<W: WriteMp4>: IBox {
-    async fn write(&self, writer: &mut W) -> Result<usize, MP4Error>;
+pub trait BoxWrite: IBox {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error>;
 }
 
 #[async_trait]
-impl<T: BoxWrite<W> + Sync, W: WriteMp4> BoxWrite<W> for Vec<T> {
-    async fn write(&self, writer: &mut W) -> Result<usize, MP4Error> {
+impl<T: BoxWrite + Sync> BoxWrite for Vec<T> {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         for item in self {
             count += item.write(writer).await?;
@@ -48,8 +48,8 @@ impl<T: BoxWrite<W> + Sync, W: WriteMp4> BoxWrite<W> for Vec<T> {
 }
 
 #[async_trait]
-impl<T: BoxWrite<W> + Sync, W: WriteMp4> BoxWrite<W> for Option<T> {
-    async fn write(&self, writer: &mut W) -> Result<usize, MP4Error> {
+impl<T: BoxWrite + Sync> BoxWrite for Option<T> {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         if let Some(item) = self {
             count += item.write(writer).await?;
@@ -66,15 +66,15 @@ pub trait PartialBox {
 }
 
 #[async_trait]
-pub trait PartialBoxRead<R: ReadMp4>: PartialBox + Sized {
-    async fn read_data(parent_data: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error>;
-    async fn read_child(&mut self, _header: BoxHeader, _reader: &mut R) -> Result<(), MP4Error> {
+pub trait PartialBoxRead: PartialBox + Sized {
+    async fn read_data<R: ReadMp4>(parent_data: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error>;
+    async fn read_child<R: ReadMp4>(&mut self, _header: BoxHeader, _reader: &mut R) -> Result<(), MP4Error> {
         Ok(())
     }
 }
 
 #[async_trait]
-pub trait PartialBoxWrite<W: WriteMp4>: PartialBox {
-    async fn write_data(&self, _writer: &mut W) -> Result<usize, MP4Error> {Ok(0)}
-    async fn write_children(&self, _writer: &mut W) -> Result<usize, MP4Error> {Ok(0)}
+pub trait PartialBoxWrite: PartialBox {
+    async fn write_data<W: WriteMp4>(&self, _writer: &mut W) -> Result<usize, MP4Error> {Ok(0)}
+    async fn write_children<W: WriteMp4>(&self, _writer: &mut W) -> Result<usize, MP4Error> {Ok(0)}
 }

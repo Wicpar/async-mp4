@@ -37,12 +37,11 @@ impl<P> MP4Box<P>
 }
 
 #[async_trait]
-impl<P, W> BoxWrite<W> for MP4Box<P>
+impl<P> BoxWrite for MP4Box<P>
     where
-        P: PartialBox<ParentData=()> + PartialBoxWrite<W> + Send + Sync,
-        W: WriteMp4
+        P: PartialBox<ParentData=()> + PartialBoxWrite + Send + Sync,
 {
-    async fn write(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         count += self.header().write(writer).await?;
         count += self.inner.write_data(writer).await?;
@@ -64,12 +63,11 @@ impl<P> IBox for MP4Box<P>
 }
 
 #[async_trait]
-impl<P, R> BoxRead<R> for MP4Box<P>
+impl<P> BoxRead for MP4Box<P>
     where
-        P: PartialBox<ParentData=()> + PartialBoxRead<R> + Send + Sync,
-        R: ReadMp4
+        P: PartialBox<ParentData=()> + PartialBoxRead + Send + Sync,
 {
-    async fn read(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error> {
+    async fn read<R: ReadMp4>(header: BoxHeader, reader: &mut R) -> Result<Self, MP4Error> {
         let actual = header.id;
         let  target = Self::ID;
         if actual != target {

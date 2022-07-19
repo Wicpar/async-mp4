@@ -20,8 +20,8 @@ impl Mp4Readable for SampleEntry {
     async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
         let header: BoxHeader = reader.read().await?;
         Ok(match header.id {
-            Avc1Box::ID => Self::Avc1(<Avc1Box as BoxRead<_>>::read(header, reader).await?),
-            _ => Self::Unknown(<UnknownBox as BoxRead<_>>::read(header, reader).await?)
+            Avc1Box::ID => Self::Avc1(<Avc1Box as BoxRead>::read(header, reader).await?),
+            _ => Self::Unknown(<UnknownBox as BoxRead>::read(header, reader).await?)
         })
     }
 }

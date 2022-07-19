@@ -24,9 +24,9 @@ impl Mp4Readable for DataEntryBox {
     async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
         let header: BoxHeader = reader.read().await?;
         Ok(match header.id {
-            UrlBox::ID => Url(<UrlBox as BoxRead<_>>::read(header, reader).await?),
-            UrnBox::ID => Urn(<UrnBox as BoxRead<_>>::read(header, reader).await?),
-            _ => Unknown(<UnknownBox as BoxRead<_>>::read(header, reader).await?)
+            UrlBox::ID => Url(<UrlBox as BoxRead>::read(header, reader).await?),
+            UrnBox::ID => Urn(<UrnBox as BoxRead>::read(header, reader).await?),
+            _ => Unknown(<UnknownBox as BoxRead>::read(header, reader).await?)
         })
     }
 }
