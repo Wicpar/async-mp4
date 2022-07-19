@@ -1,4 +1,5 @@
 use crate::{full_box, mp4_data};
+use crate::types::array::Mp4Array;
 
 mp4_data! {
     #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]

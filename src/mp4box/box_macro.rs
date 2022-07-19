@@ -2,13 +2,13 @@
 
 #[macro_export]
 macro_rules! base_box {
-    (box ($id:expr, $name:ident, $box:ident) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
+    (box ($id:expr, $name:ident, $box:ident) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $($child:ident)+),* $(,)*})?) => {
         pub type $box = $crate::mp4box::box_root::MP4Box<$name>;
 
         #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub struct $name {
             $($(pub $data_name: $data,)*)?
-            $($(pub $child_name: base_box!(@type $child)),*)?
+            $($(pub $child_name: base_box!(@type $($child)+)),*)?
         }
 
 
@@ -42,7 +42,7 @@ macro_rules! base_box {
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
                 match header.id {
-                    $($(base_box!(@id $child) => base_box!(@read self.$child_name, header, reader, $child),)*)?
+                    $($(base_box!(@id $($child)+) => base_box!(@read self.$child_name, header, reader, $($child)+),)*)?
                     _ => {}
                 }
                 Ok(())
@@ -80,7 +80,11 @@ macro_rules! base_box {
         Option<$child>
     };
 
-    (@id $(vec)? $child:ty) => {
+    (@id vec $child:ty) => {
+        <$child>::ID
+    };
+
+    (@id $child:ty) => {
         <$child>::ID
     };
 
@@ -96,14 +100,14 @@ macro_rules! base_box {
 
 #[macro_export]
 macro_rules! full_box {
-    (box ($id:expr, $name:ident, $box:ident, $(@save $flag_name:ident :)? $flag:ty) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
+    (box ($id:expr, $name:ident, $box:ident, $(@save $flag_name:ident :)? $flag:ty) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $($child:ident)+),* $(,)*})?) => {
         pub type $box = $crate::mp4box::box_root::MP4Box<$crate::mp4box::box_full::FullBox<$name, $flag>>;
 
         #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub struct $name {
             $($(pub $data_name: $data,)*)?
             $(pub $flag_name: $flag,)?
-            $($(pub $child_name: base_box!(@type $child)),*)?
+            $($(pub $child_name: base_box!(@type $($child)+)),*)?
         }
 
         impl $crate::mp4box::box_full::FullBoxInfo for $name {
@@ -161,7 +165,7 @@ macro_rules! full_box {
                 use $crate::mp4box::box_trait::IBox;
                 use $crate::mp4box::box_trait::BoxRead;
                 match header.id {
-                    $($(base_box!(@id $child) => base_box!(@read self.$child_name, header, reader, $child),)*)?
+                    $($(base_box!(@id $($child)+) => base_box!(@read self.$child_name, header, reader, $($child)+),)*)?
                     _ => {}
                 }
                 Ok(())
@@ -202,7 +206,11 @@ macro_rules! full_box {
         Option<$child>
     };
 
-    (@id $(vec)? $child:ty) => {
+    (@id vec $child:ty) => {
+        <$child>::ID
+    };
+
+    (@id $child:ty) => {
         <$child>::ID
     };
 
