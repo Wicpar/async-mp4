@@ -2,10 +2,10 @@
 
 #[macro_export]
 macro_rules! base_box {
-    (box ($id:expr, $name:ident, $box:ident) $(data { $($data_name:ident: $data:ty),* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
+    (box ($id:expr, $name:ident, $box:ident) $(data { $($data_name:ident: $data:ty),* $(,)* })? $(children { $($child_name:ident: $child:tt),* $(,)*})?) => {
         pub type $box = $crate::mp4box::box_root::MP4Box<$name>;
 
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub struct $name {
             $($(pub $data_name: $data,)*)?
             $($(pub $child_name: base_box!(@type $child)),*)?
@@ -19,6 +19,7 @@ macro_rules! base_box {
             fn byte_size(&self) -> usize {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::IBox;
+                use $crate::bytes_write::Mp4Writable;
                 $($(self.$data_name.byte_size() +)*)?
                 $($(self.$child_name.byte_size() +)*)? 0
             }
@@ -26,7 +27,7 @@ macro_rules! base_box {
             const ID: $crate::r#type::BoxType = $crate::r#type::BoxType::Id($crate::id::BoxId(*$id));
         }
 
-        #[allow(unused_variables, unused_mut, dead_code)]
+        #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
         impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name{
             async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
@@ -48,12 +49,13 @@ macro_rules! base_box {
             }
         }
 
-        #[allow(unused_variables, unused_mut, dead_code)]
+        #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
         impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
 
             async fn write_data(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
+                use $crate::bytes_write::Mp4Writable;
                 $($(count += self.$data_name.write(writer).await?;)*)?
                 Ok(count)
             }
@@ -140,7 +142,7 @@ macro_rules! full_box {
             const ID: $crate::r#type::BoxType = $crate::r#type::BoxType::Id($crate::id::BoxId(*$id));
         }
 
-        #[allow(unused_variables, unused_mut, dead_code)]
+        #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
         impl<R: $crate::bytes_read::ReadMp4> $crate::mp4box::box_trait::PartialBoxRead<R> for $name {
 
@@ -166,11 +168,11 @@ macro_rules! full_box {
             }
         }
 
-        #[allow(unused_variables, unused_mut, dead_code)]
+        #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
         #[async_trait::async_trait]
         impl<W: $crate::bytes_write::WriteMp4> $crate::mp4box::box_trait::PartialBoxWrite<W> for $name {
 
-            async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
+            async fn write_data(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::bytes_write::Mp4VersionedWritable;
                 use $crate::mp4box::box_full::FullBoxInfo;
@@ -262,4 +264,117 @@ macro_rules! default_flags {
             }
         }
     }
+}
+
+
+#[macro_export]
+macro_rules! mp4_data {
+    ($(#[$attr:meta])* $vis:vis struct $name:ident { $($v:vis $data_name:ident: $data:ty),* $(,)* }) => {
+
+        $(#[$attr])*
+        $vis struct $name {
+            $($v $data_name: $data,)*
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl $crate::bytes_read::Mp4Readable for $name {
+            async fn read<R: $crate::bytes_read::ReadMp4>(reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                Ok(Self {
+                    $($data_name: reader.read().await?,)*
+                })
+            }
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl $crate::bytes_write::Mp4Writable for $name {
+            fn byte_size(&self) -> usize {
+                let mut count = 0;
+                count += $(self.$data_name.byte_size();)*
+                count
+            }
+
+            async fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                let mut count = 0;
+                count += $(self.$data_name.write(writer).await?;)*
+                Ok(count)
+            }
+        }
+
+    };
+
+    ($(#[$attr:meta])* $vis:vis struct $name:ident ($($v:vis $data:ty),* $(,)* );) => {
+
+        $(#[$attr])*
+        $vis struct $name (
+            $($v $data,)*
+        );
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl $crate::bytes_read::Mp4Readable for $name {
+            async fn read<R: $crate::bytes_read::ReadMp4>(reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                Ok(Self (
+                    $(reader.read::<$data>().await?,)*
+                ))
+            }
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl $crate::bytes_write::Mp4Writable for $name {
+            fn byte_size(&self) -> usize {
+                let mut count = 0;
+                mp4_data!(@bytes count, self, $($data),*);
+                count
+            }
+
+            async fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                let mut count = 0;
+                mp4_data!(@write count, self, writer, $($data),*);
+                Ok(count)
+            }
+        }
+    };
+
+    (@bytes $count:ident, $self:ident) => {};
+
+    (@bytes $count:ident, $self:ident, $data:ty) => {
+        $count += $self.0.byte_size();
+    };
+
+    (@bytes $count:ident, $self:ident, $data:ty, $data2:ty) => {
+        mp4_data!(@bytes $count, $data);
+        $count += $self.1.byte_size();
+    };
+
+    (@bytes $count:ident, $self:ident, $data:ty, $data2:ty, $data3:ty) => {
+        mp4_data!(@bytes $count, $data, $data2);
+        $count += $self.2.byte_size();
+    };
+    (@bytes $count:ident, $self:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
+        mp4_data!(@bytes $count, $data, $data2, $data3);
+        $count += $self.3.byte_size();
+    };
+
+    (@write $count:ident, $self:ident, $writer:ident) => {};
+
+    (@write $count:ident, $self:ident, $writer:ident, $data:ty) => {
+        $count += $self.0.write($writer).await?;
+    };
+
+    (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty) => {
+        mp4_data!(@bytes $count, $data);
+        $count += $self.1.write($writer).await?;
+    };
+
+    (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty) => {
+        mp4_data!(@bytes $count, $data, $data2);
+        $count += $self.2.write($writer).await?;
+    };
+    (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
+        mp4_data!(@bytes $count, $data, $data2, $data3);
+        $count += $self.3.write($writer).await?;
+    };
 }

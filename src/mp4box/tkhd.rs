@@ -3,11 +3,10 @@ pub use async_trait::async_trait;
 use bitregions::bitregions;
 use fixed::types::I8F8;
 use fixed_macro::fixed;
-use crate::error::MP4Error;
 use crate::matrix::MP4Matrix;
 use crate::full_box;
-use crate::mp4box::mvhd::Mp4DateTime;
-use crate::mp4box::mvhd::Mp4Duration;
+use crate::types::date::Mp4DateTime;
+use crate::types::duration::Mp4Duration;
 
 bitregions! {
     pub TrakFlags u32 {

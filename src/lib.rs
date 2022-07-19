@@ -10,6 +10,7 @@ pub(crate) mod size;
 pub(crate) mod bytes_write;
 pub(crate) mod bytes_read;
 pub(crate) mod bytes_reserve;
+pub(crate) mod types;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

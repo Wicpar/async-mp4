@@ -1,16 +1,10 @@
-use crate::mp4box::box_full::{FullBox, FullBoxData, FullBoxInfo};
-use crate::mp4box::box_root::MP4Box;
+use std::hash::{Hash, Hasher};
 use bitregions::bitregions;
-use crate::r#type::BoxType;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
 use async_trait::async_trait;
-use futures::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::bytes_read::{Mp4Readable, ReadMp4};
 use crate::error::MP4Error;
-use crate::id::BoxId;
-use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
-
-pub type TrexBox = MP4Box<FullBox<Trex, u32>>;
+use crate::full_box;
 
 #[repr(u8)]
 pub enum IsLeading {
@@ -87,55 +81,20 @@ impl Mp4Readable for SampleFlags {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Trex {
-    pub track_id: u32,
-    pub default_sample_description_index: u32,
-    pub default_sample_duration: u32,
-    pub default_sample_size: u32,
-    pub default_sample_flags: SampleFlags,
-}
-
-impl FullBoxInfo for Trex { type Flag = u32; }
-
-impl PartialBox for Trex {
-    type ParentData = FullBoxData<u32>;
-    type ThisData = ();
-
-    fn byte_size(&self) -> usize {
-        5 * 4
-    }
-
-    const ID: BoxType = BoxType::Id(BoxId(*b"trex"));
-}
-
-#[async_trait]
-impl<R> PartialBoxRead<R> for Trex
-    where
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync {
-
-    async fn read_data(_: Self::ParentData, reader: &mut R) -> Result<Self, MP4Error> {
-        Ok(Self {
-            track_id: reader.read().await?,
-            default_sample_description_index: reader.read().await?,
-            default_sample_duration: reader.read().await?,
-            default_sample_size: reader.read().await?,
-            default_sample_flags: reader.read().await?
-        })
+impl Eq for SampleFlags {}
+impl Hash for SampleFlags {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
     }
 }
 
-#[async_trait]
-impl<W> PartialBoxWrite<W> for Trex
-    where
-        W: AsyncWrite + Unpin + Send + Sync {
-    async fn write_data(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        let mut count = 0;
-        count += self.track_id.write(writer).await?;
-        count += self.default_sample_description_index.write(writer).await?;
-        count += self.default_sample_duration.write(writer).await?;
-        count += self.default_sample_size.write(writer).await?;
-        count += self.default_sample_flags.write(writer).await?;
-        Ok(count)
+full_box! {
+    box (b"trex", Trex, TrexBox, u32)
+    data {
+        track_id: u32,
+        default_sample_description_index: u32,
+        default_sample_duration: u32,
+        default_sample_size: u32,
+        default_sample_flags: SampleFlags,
     }
 }

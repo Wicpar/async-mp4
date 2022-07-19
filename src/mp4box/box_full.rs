@@ -9,7 +9,7 @@ use crate::bytes_write::{FlagTrait, Mp4Writable, WriteMp4};
 use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct FullBoxData<F: FlagTrait> {
     pub version: u8,
     pub flags: F
@@ -46,7 +46,7 @@ pub trait FullBoxInfo {
     fn flags(&self) -> Self::Flag {Self::Flag::default()}
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub struct FullBox<P, F>
     where
         P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,

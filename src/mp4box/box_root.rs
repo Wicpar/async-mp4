@@ -11,7 +11,7 @@ use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox, PartialBox, PartialBoxRe
 use crate::r#type::BoxType;
 use crate::size::BoxSize::Known;
 
-#[derive(Debug, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub struct MP4Box<P>
     where
         P: PartialBox<ParentData=()>
