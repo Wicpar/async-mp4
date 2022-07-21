@@ -24,6 +24,8 @@ pub enum MP4Error {
     BadUtf8(#[from] FromUtf8Error),
     #[error("Malformed Box")]
     MalformedBox(#[from] MalformedBoxError),
-    #[error("unknown data store error")]
+    #[error("{0}")]
+    Custom(String),
+    #[error("unknown mp4 error")]
     Unknown,
 }

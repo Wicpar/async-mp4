@@ -6,3 +6,6 @@ pub mod duration;
 pub mod array;
 pub mod sample;
 pub mod padded_byte;
+pub mod versioned_u32_u64;
+pub mod versioned_signed_int;
+pub mod tuple;

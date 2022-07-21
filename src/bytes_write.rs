@@ -4,8 +4,8 @@ use byteorder_async::{BigEndian, WriterToByteOrder};
 use futures::AsyncWrite;
 use crate::error::MP4Error;
 
-pub trait FlagTrait: Copy + Default + BitOr + Into<u32> + From<u32> + Send + Sync + 'static {}
-impl<T: Copy + Default + BitOr + Into<u32> + From<u32> + Send + Sync + 'static> FlagTrait for T {}
+pub trait FlagTrait: Copy + Default + BitOr<Output=Self> + Into<u32> + From<u32> + Send + Sync + 'static {}
+impl<T: Copy + Default + BitOr<Output=Self> + Into<u32> + From<u32> + Send + Sync + 'static> FlagTrait for T {}
 
 #[async_trait]
 pub trait Mp4Writable {

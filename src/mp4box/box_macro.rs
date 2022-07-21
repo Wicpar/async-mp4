@@ -116,7 +116,7 @@ macro_rules! full_box {
             fn version(&self) -> u8 {
                 #![allow(unused_imports)]
                 use $crate::bytes_write::Mp4VersionedWritable;
-                full_box!(@max
+                $crate::max!(
                     $($(Mp4VersionedWritable::<$flag>::required_version(&self.$data_name)),*)?
                 )
             }
@@ -220,22 +220,6 @@ macro_rules! full_box {
 
     (@read $child_name:expr, $header:ident, $reader:ident, $child:ty) => {
         $child_name = Some(<$child>::read($header, $reader).await?)
-    };
-
-    (@max $x:expr) => ( $x );
-    (@max $x:expr, $($xs:expr),+) => {
-        {
-            use std::cmp::max;
-            max($x, full_box!(@max $($xs),+ ))
-        }
-    };
-
-    (@min $x:expr) => ( $x );
-    (@min $x:expr, $($xs:expr),+) => {
-        {
-            use std::cmp::min;
-            min($x, full_box!(@min $($xs),+ ))
-        }
     };
 }
 
@@ -384,5 +368,203 @@ macro_rules! mp4_data {
     (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
         mp4_data!(@bytes $count, $data, $data2, $data3);
         $count += $self.3.write($writer).await?;
+    };
+}
+
+#[macro_export]
+macro_rules! mp4_versioned_data {
+    ($(#[$attr:meta])* $vis:vis struct $name:ident { $($v:vis $data_name:ident: $data:ty),* $(,)* }) => {
+
+        $(#[$attr])*
+        $vis struct $name {
+            $($v $data_name: $data,)*
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl<F: $crate::bytes_write::FlagTrait> $crate::bytes_read::Mp4VersionedReadable<F> for $name where $($data: $crate::bytes_read::Mp4VersionedReadable<F>),* {
+            async fn versioned_read<R: $crate::bytes_read::ReadMp4>(version: u8, flags: F, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                Ok(Self {
+                    $($data_name: reader.versioned_read(version, flags).await?,)*
+                })
+            }
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl<F: $crate::bytes_write::FlagTrait> $crate::bytes_write::Mp4VersionedWritable<F> for $name where $($data: $crate::bytes_write::Mp4VersionedWritable<F>),* {
+
+            fn required_version(&self) -> u8 {
+                $crate::max!($(self.$data_name.required_version()),*)
+            }
+
+            fn required_flags(&self) -> F {
+                $(self.$data_name.required_flags() | )* F::default()
+            }
+
+            fn versioned_byte_size(&self, version: u8, flags: F) -> usize {
+                let mut count = 0;
+                count += $(self.$data_name.versioned_byte_size(version, flags);)*
+                count
+            }
+
+            async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                let mut count = 0;
+                count += $(self.$data_name.versioned_write(version, flags, writer).await?;)*
+                Ok(count)
+            }
+        }
+
+    };
+
+    ($(#[$attr:meta])* $vis:vis struct $name:ident ($($v:vis $data:ty),* $(,)* );) => {
+
+        $(#[$attr])*
+        $vis struct $name (
+            $($v $data,)*
+        );
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl<F: $crate::bytes_write::FlagTrait> $crate::bytes_read::Mp4Readable for $name {
+            async fn versioned_read<R: $crate::bytes_read::ReadMp4>(version: u8, flags: F, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                Ok(Self (
+                    $(reader.read_versioned::<$data>(version, flags).await?,)*
+                ))
+            }
+        }
+
+        #[allow(unused_variables, unused_mut, dead_code)]
+        #[async_trait::async_trait]
+        impl<F: $crate::bytes_write::FlagTrait> $crate::bytes_write::Mp4Writable for $name {
+            fn versioned_byte_size(&self, version: u8, flags: F) -> usize {
+                let mut count = 0;
+                mp4_versioned_data!(@bytes count, self, version, flags, $($data),*);
+                count
+            }
+
+            async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                let mut count = 0;
+                mp4_versioned_data!(@write count, self, version, flags, writer, $($data),*);
+                Ok(count)
+            }
+        }
+    };
+
+    (@bytes $count:ident, $self:ident, $version:ident, $flags:ident) => {};
+
+    (@bytes $count:ident, $self:ident, $version:ident, $flags:ident, $data:ty) => {
+        $count += $self.0.versioned_byte_size($version, $flags);
+    };
+
+    (@bytes $count:ident, $self:ident, $version:ident, $flags:ident, $data:ty, $data2:ty) => {
+        mp4_data!(@bytes $count, $data);
+        $count += $self.1.versioned_byte_size($version, $flags);
+    };
+
+    (@bytes $count:ident, $self:ident, $version:ident, $flags:ident, $data:ty, $data2:ty, $data3:ty) => {
+        mp4_data!(@bytes $count, $data, $data2);
+        $count += $self.2.versioned_byte_size($version, $flags);
+    };
+    (@bytes $count:ident, $self:ident, $version:ident, $flags:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
+        mp4_data!(@bytes $count, $data, $data2, $data3);
+        $count += $self.3.versioned_byte_size($version, $flags);
+    };
+
+    (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident) => {};
+
+    (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty) => {
+        $count += $self.0.versioned_write($version, $flags, $writer).await?;
+    };
+
+    (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty) => {
+        mp4_data!(@bytes $count, $data);
+        $count += $self.1.versioned_write($version, $flags, $writer).await?;
+    };
+
+    (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty) => {
+        mp4_data!(@bytes $count, $data, $data2);
+        $count += $self.2.versioned_write($version, $flags, $writer).await?;
+    };
+    (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
+        mp4_data!(@bytes $count, $data, $data2, $data3);
+        $count += $self.3.versioned_write($version, $flags, $writer).await?;
+    };
+}
+
+#[macro_export]
+macro_rules! flag_option {
+    ($(#[$attr:meta])* $vis:vis struct $name:ident ($v:vis $data:ty, $flag:ty, $value:ident);) => {
+        $(#[$attr])*
+        $vis struct $name (
+            $v Option<$data>
+        );
+
+
+        impl std::ops::Deref for $name {
+            type Target = Option<$data>;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl From<$data> for $name {
+            fn from(t: $data) -> Self {
+                Self(Some(t))
+            }
+        }
+
+        impl From<Option<$data>> for $name {
+            fn from(t: Option<$data>) -> Self {
+                Self(t)
+            }
+        }
+
+        paste::paste! {
+            #[async_trait::async_trait]
+            impl $crate::bytes_read::Mp4VersionedReadable<$flag> for $name {
+                async fn versioned_read<R: $crate::bytes_read::ReadMp4>(version: u8, flags: $flag, reader: &mut R) -> Result<Self, $crate::error::MP4Error> {
+                    Ok(Self(if flags.[<$value:lower>]() { Some(reader.versioned_read(version, flags).await?) } else { None }))
+                }
+            }
+
+            #[async_trait::async_trait]
+            impl $crate::bytes_write::Mp4VersionedWritable<$flag> for $name {
+                fn required_flags(&self) -> $flag {
+                    match self.0 { None => <$flag>::default(), Some(_) => <$flag>::[<with_ $value:lower>]() }
+                }
+
+                fn versioned_byte_size(&self, version: u8, flags: $flag) -> usize {
+                    if flags.[<$value:lower>]() { self.0.unwrap_or_default().versioned_byte_size(version, flags) } else { 0 }
+                }
+
+                async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: $flag, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                    Ok(if flags.[<$value:lower>]() { self.0.unwrap_or_default().versioned_write(version, flags, writer).await? } else { 0 })
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! max {
+    ($x:expr) => ( $x );
+    ($x:expr, $($xs:expr),+) => {
+        {
+            use std::cmp::max;
+            max($x, $crate::max!($($xs),+ ))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! min {
+    ($x:expr) => ( $x );
+    ($x:expr, $($xs:expr),+) => {
+        {
+            use std::cmp::min;
+            min($x, $crate::min!($($xs),+ ))
+        }
     };
 }

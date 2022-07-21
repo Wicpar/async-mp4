@@ -24,8 +24,7 @@ impl<F: FlagTrait> Mp4Readable for FullBoxData<F> {
 
 #[async_trait]
 impl<F: FlagTrait> Mp4Writable for FullBoxData<F> {
-
-
+    
     fn byte_size(&self) -> usize {
         4
     }
