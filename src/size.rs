@@ -44,10 +44,10 @@ impl BoxSize {
         Ok(match self {
             BoxSize::Known(size) => {
                 let size = *size as i64;
-                let pos = reader.seek(SeekFrom::Current(0)).await?;
+                let mut pos = reader.seek(SeekFrom::Current(0)).await?;
                 let read = (pos - start) as i64;
                 if read > size {
-                    reader.seek(SeekFrom::Current(size - read)).await?;
+                    pos = reader.seek(SeekFrom::Current(size - read)).await?;
                 }
                 read >= size
             }

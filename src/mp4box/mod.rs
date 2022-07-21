@@ -34,3 +34,6 @@ pub mod tfdt;
 pub mod trun;
 pub mod traf;
 pub mod moof;
+pub mod opus;
+pub mod dops;
+pub mod ftyp;

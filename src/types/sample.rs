@@ -34,3 +34,23 @@ impl Deref for VisualSampleEntry {
         &self.sample_entry
     }
 }
+
+mp4_data! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    pub struct AudioSampleEntry {
+        pub sample_entry: SampleEntry,
+        pub _r1: [u32; 2],
+        pub channel_count: u16,
+        pub sample_size: u16,
+        pub _r2: [u16; 2],
+        pub sample_rate: I16F16,
+    }
+}
+
+impl Deref for AudioSampleEntry {
+    type Target = SampleEntry;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sample_entry
+    }
+}
