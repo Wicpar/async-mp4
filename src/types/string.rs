@@ -17,16 +17,15 @@ impl Mp4Readable for String {
     }
 }
 
-#[async_trait]
 impl Mp4Writable for String {
     fn byte_size(&self) -> usize {
         self.as_bytes().len() + 1
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.as_bytes().write(writer).await?;
-        count += 0u8.write(writer).await?;
+        count += writer.write(self.as_bytes())?;
+        count += 0u8.write(writer)?;
         Ok(count)
     }
 }

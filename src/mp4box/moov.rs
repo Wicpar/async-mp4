@@ -6,7 +6,7 @@ use crate::mp4box::trak::TrakBox;
 base_box! {
     box (b"moov", Moov, MoovBox) children {
         mvhd: MvhdBox,
+        traks: vec TrakBox,
         mvex: MvexBox,
-        traks: vec TrakBox
     }
 }

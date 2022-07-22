@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::io::SeekFrom;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use futures::AsyncSeekExt;
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
@@ -36,16 +36,15 @@ impl<P> MP4Box<P>
     }
 }
 
-#[async_trait]
 impl<P> BoxWrite for MP4Box<P>
     where
         P: PartialBox<ParentData=()> + PartialBoxWrite + Send + Sync,
 {
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.header().write(writer).await?;
-        count += self.inner.write_data(writer).await?;
-        count += self.inner.write_children(writer).await?;
+        count += self.header().write(writer)?;
+        count += self.inner.write_data(writer)?;
+        count += self.inner.write_children(writer)?;
         debug_assert!(count == self.byte_size(), "Byte Size is not equal to written size");
         Ok(count)
     }
@@ -99,5 +98,14 @@ impl<P> Deref for MP4Box<P>
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<P> DerefMut for MP4Box<P>
+    where
+        P: PartialBox<ParentData=()>
+{
+    fn deref_mut (&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }

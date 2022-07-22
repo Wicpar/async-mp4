@@ -23,27 +23,27 @@ impl Hash for TfhdFlags {
 }
 
 flag_option! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
     pub struct TfhdDataOffset(pub u64, TfhdFlags, HAS_BASE_DATA_OFFSET);
 }
 
 flag_option! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
     pub struct TfhdSampleDescriptionIndex(pub u32, TfhdFlags, HAS_SAMPLE_DESCRIPTION_INDEX);
 }
 
 flag_option! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
     pub struct TfhdDefaultSampleDuration(pub u32, TfhdFlags, HAS_DEFAULT_SAMPLE_DURATION);
 }
 
 flag_option! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
     pub struct TfhdDefaultSampleSize(pub u32, TfhdFlags, HAS_DEFAULT_SAMPLE_SIZE);
 }
 
 flag_option! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
     pub struct TfhdDefaultSampleFlags(pub SampleFlags, TfhdFlags, HAS_DEFAULT_SAMPLE_FLAGS);
 }
 

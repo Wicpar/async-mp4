@@ -39,7 +39,6 @@ impl<I, T> Mp4Readable for Mp4Array<I, T>
     }
 }
 
-#[async_trait]
 impl<I, T> Mp4Writable for Mp4Array<I, T>
     where
         I: AsPrimitive<usize> + Mp4Readable + Mp4Writable + Send + Sync,
@@ -50,11 +49,11 @@ impl<I, T> Mp4Writable for Mp4Array<I, T>
         AsPrimitive::<I>::as_(self.0.len()).byte_size() + self.0.iter().map(Mp4Writable::byte_size).sum::<usize>()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += AsPrimitive::<I>::as_(self.0.len()).write(writer).await?;
+        count += AsPrimitive::<I>::as_(self.0.len()).write(writer)?;
         for elem in &self.0 {
-            count += elem.write(writer).await?;
+            count += elem.write(writer)?;
         }
         Ok(count)
     }
@@ -99,7 +98,6 @@ impl<I, O, T> Mp4Readable for Mp4OffsetArray<I, O, T> where
     }
 }
 
-#[async_trait]
 impl<I, O, T> Mp4Writable for Mp4OffsetArray<I, O, T> where
     I: AsPrimitive<usize> + Mp4Readable + Mp4Writable + Send + Sync,
     T: Mp4Readable + Mp4Writable + Send + Sync,
@@ -110,18 +108,18 @@ impl<I, O, T> Mp4Writable for Mp4OffsetArray<I, O, T> where
         AsPrimitive::<I>::as_(self.data.len()).byte_size() + self.data.iter().map(Mp4Writable::byte_size).sum::<usize>() + self.offset.byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += AsPrimitive::<I>::as_(self.data.len()).write(writer).await?;
-        count += self.offset.write(writer).await?;
+        count += AsPrimitive::<I>::as_(self.data.len()).write(writer)?;
+        count += self.offset.write(writer)?;
         for elem in &self.data {
-            count += elem.write(writer).await?;
+            count += elem.write(writer)?;
         }
         Ok(count)
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Default)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Mp4VersionedOffsetArray<I, O, T>
     where
         I: AsPrimitive<usize> + Mp4Readable + Mp4Writable,
@@ -161,7 +159,6 @@ impl<I, O, T, F> Mp4VersionedReadable<F> for Mp4VersionedOffsetArray<I, O, T> wh
     }
 }
 
-#[async_trait]
 impl<I, O, T, F> Mp4VersionedWritable<F> for Mp4VersionedOffsetArray<I, O, T> where
     I: AsPrimitive<usize> + Mp4Readable + Mp4Writable + Send + Sync,
     T: Mp4VersionedReadable<F> + Mp4VersionedWritable<F> + Send + Sync,
@@ -183,12 +180,12 @@ impl<I, O, T, F> Mp4VersionedWritable<F> for Mp4VersionedOffsetArray<I, O, T> wh
             self.data.iter().map(|it|it.versioned_byte_size(version, flags)).sum::<usize>()
     }
 
-    async fn versioned_write<W: WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, MP4Error> {
+    fn versioned_write<W: WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += AsPrimitive::<I>::as_(self.data.len()).write(writer).await?;
-        count += self.offset.versioned_write(version, flags, writer).await?;
+        count += AsPrimitive::<I>::as_(self.data.len()).write(writer)?;
+        count += self.offset.versioned_write(version, flags, writer)?;
         for elem in &self.data {
-            count += elem.versioned_write(version, flags, writer).await?;
+            count += elem.versioned_write(version, flags, writer)?;
         }
         Ok(count)
     }

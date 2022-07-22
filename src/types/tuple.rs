@@ -15,7 +15,6 @@ macro_rules! impl_tuple {
             }
         }
 
-        #[async_trait]
         #[allow(non_snake_case)]
         impl<$($t: Mp4Writable + Send + Sync),+> Mp4Writable for ($($t,)+) {
             fn byte_size(&self) -> usize {
@@ -23,10 +22,10 @@ macro_rules! impl_tuple {
                 $($t.byte_size() + )+ 0
             }
 
-            async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+            fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
                 let mut count = 0;
                 let ($($t,)+) = self;
-                $(count += $t.write(writer).await?;)+
+                $(count += $t.write(writer)?;)+
                 Ok(count)
             }
         }

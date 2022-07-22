@@ -35,14 +35,13 @@ impl Mp4Readable for BoxId {
     }
 }
 
-#[async_trait]
 impl Mp4Writable for BoxId {
     fn byte_size(&self) -> usize {
         self.0.byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.0.write(writer).await
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.write(writer)
     }
 }
 

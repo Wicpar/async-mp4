@@ -13,3 +13,9 @@ full_box! {
         entries: Mp4Array<u32, StcoEntry>
     }
 }
+
+impl Default for Stco {
+    fn default() -> Self {
+        Self { entries: Default::default() }
+    }
+}

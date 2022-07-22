@@ -15,3 +15,11 @@ full_box! {
         entries: Mp4Array<u32, StscEntry>
     }
 }
+
+impl Default for Stsc {
+    fn default() -> Self {
+        Self {
+            entries: Default::default()
+        }
+    }
+}

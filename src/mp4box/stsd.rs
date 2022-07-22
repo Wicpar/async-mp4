@@ -10,13 +10,13 @@ use crate::mp4box::avc1::{Avc1Box};
 use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum SampleEntry {
+pub enum StsdSampleEntry {
     Avc1(Avc1Box),
     Unknown(UnknownBox),
 }
 
 #[async_trait]
-impl Mp4Readable for SampleEntry {
+impl Mp4Readable for StsdSampleEntry {
     async fn read<R: ReadMp4>(reader: &mut R) -> Result<Self, MP4Error> {
         let header: BoxHeader = reader.read().await?;
         Ok(match header.id {
@@ -26,25 +26,24 @@ impl Mp4Readable for SampleEntry {
     }
 }
 
-#[async_trait]
-impl Mp4Writable for SampleEntry {
+impl Mp4Writable for StsdSampleEntry {
     fn byte_size(&self) -> usize {
         match self {
-            SampleEntry::Avc1(it) => it.byte_size(),
-            SampleEntry::Unknown(it) => it.byte_size()
+            StsdSampleEntry::Avc1(it) => it.byte_size(),
+            StsdSampleEntry::Unknown(it) => it.byte_size()
         }
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         match self {
-            SampleEntry::Avc1(it) => it.write(writer).await,
-            SampleEntry::Unknown(it) => it.write(writer).await
+            StsdSampleEntry::Avc1(it) => it.write(writer),
+            StsdSampleEntry::Unknown(it) => it.write(writer)
         }
     }
 }
 
 full_box! {
     box (b"stsd", Stsd, StsdBox, u32) data {
-        entries: Mp4Array<u32, SampleEntry>
+        entries: Mp4Array<u32, StsdSampleEntry>
     }
 }

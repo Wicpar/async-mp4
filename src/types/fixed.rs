@@ -11,14 +11,13 @@ impl<Frac> Mp4Readable for FixedI32<Frac> {
     }
 }
 
-#[async_trait]
 impl<Frac: Send + Sync> Mp4Writable for FixedI32<Frac> {
     fn byte_size(&self) -> usize {
         self.to_bits().byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.to_bits().write(writer).await
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.to_bits().write(writer)
     }
 }
 
@@ -29,13 +28,12 @@ impl<Frac> Mp4Readable for FixedI16<Frac> {
     }
 }
 
-#[async_trait]
 impl<Frac: Send + Sync> Mp4Writable for FixedI16<Frac> {
     fn byte_size(&self) -> usize {
         self.to_bits().byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.to_bits().write(writer).await
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.to_bits().write(writer)
     }
 }

@@ -37,3 +37,4 @@ pub mod moof;
 pub mod opus;
 pub mod dops;
 pub mod ftyp;
+pub mod stsz;

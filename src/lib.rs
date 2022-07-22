@@ -1,28 +1,15 @@
 #![allow(dead_code)]
 
-pub(crate) mod id;
-pub(crate) mod error;
-pub(crate) mod header;
-pub(crate) mod mp4box;
-pub(crate) mod matrix;
-pub(crate) mod r#type;
-pub(crate) mod size;
-pub(crate) mod bytes_write;
-pub(crate) mod bytes_read;
-pub(crate) mod bytes_reserve;
-pub(crate) mod types;
+pub mod id;
+pub mod error;
+pub mod header;
+pub mod mp4box;
+pub mod matrix;
+pub mod r#type;
+pub mod size;
+pub mod bytes_write;
+pub mod bytes_read;
+pub mod bytes_reserve;
+pub mod types;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use fixed;

@@ -1,14 +1,14 @@
 use std::io::SeekFrom;
-use futures::{AsyncReadExt, AsyncSeekExt};
-use crate::base_box;
+use futures::{AsyncSeekExt};
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use crate::id::BoxId;
-use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox, PartialBoxRead};
+use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox};
 use crate::r#type::BoxType;
-use crate::size::BoxSize;
+
+pub type FtypBox = Ftyp;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Ftyp {
@@ -23,7 +23,7 @@ impl Ftyp {
     }
 
     fn header(&self) -> BoxHeader {
-        BoxHeader::from_id_and_inner_size(Self::ID, self.inner.byte_size())
+        BoxHeader::from_id_and_inner_size(Self::ID, self.inner_byte_size())
     }
 }
 
@@ -54,15 +54,14 @@ impl BoxRead for Ftyp {
     }
 }
 
-#[async_trait::async_trait]
 impl BoxWrite for Ftyp {
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.header().write(writer).await?;
-        count += self.major_brand.write(writer).await?;
-        count += self.minor_version.write(writer).await?;
-        count += self.compatible_brands.write(writer).await?;
+        count += self.header().write(writer)?;
+        count += self.major_brand.write(writer)?;
+        count += self.minor_version.write(writer)?;
+        count += self.compatible_brands.write(writer)?;
         Ok(count)
     }
 }

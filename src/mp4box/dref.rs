@@ -31,7 +31,6 @@ impl Mp4Readable for DataEntryBox {
     }
 }
 
-#[async_trait]
 impl Mp4Writable for DataEntryBox {
     fn byte_size(&self) -> usize {
         match self {
@@ -41,11 +40,11 @@ impl Mp4Writable for DataEntryBox {
         }
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         match self {
-            Url(it) => it.write(writer).await,
-            Urn(it ) => it.write(writer).await,
-            Unknown(it) => it.write(writer).await,
+            Url(it) => it.write(writer),
+            Urn(it ) => it.write(writer),
+            Unknown(it) => it.write(writer),
         }
     }
 }

@@ -3,6 +3,6 @@ use crate::mp4box::trex::TrexBox;
 
 base_box! {
     box (b"mvex", Mvex, MvexBox) children {
-        trex: TrexBox
+        trex: vec TrexBox
     }
 }

@@ -10,11 +10,23 @@ use crate::size::BoxSize;
 use async_trait::async_trait;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct MdatBox(Vec<u8>);
+pub struct MdatBox(pub Vec<u8>);
+
+impl MdatBox {
+
+    fn inner_byte_size(&self) -> usize {
+        self.0.byte_size()
+    }
+
+    pub fn header(&self) -> BoxHeader {
+        BoxHeader::from_id_and_inner_size(Self::ID, self.inner_byte_size())
+    }
+
+}
 
 impl IBox for MdatBox {
     fn byte_size(&self) -> usize {
-        self.0.byte_size()
+        self.header().byte_size() + self.inner_byte_size()
     }
 
     const ID: BoxType = BoxType::Id(BoxId(*b"mdat"));
@@ -39,12 +51,12 @@ impl BoxRead for MdatBox {
     }
 }
 
-#[async_trait]
+
 impl BoxWrite for MdatBox {
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += BoxHeader::from_id_and_inner_size(Self::ID, self.0.len()).write(writer).await?;
-        count += self.0.write(writer).await?;
+        count += self.header().write(writer)?;
+        count += writer.write(&self.0)?;
         Ok(count)
     }
 }

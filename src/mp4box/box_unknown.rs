@@ -22,13 +22,12 @@ impl UnknownBox {
     }
 }
 
-#[async_trait]
 impl BoxWrite for UnknownBox
 {
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.header().write(writer).await?;
-        count += self.data.write(writer).await?;
+        count += self.header().write(writer)?;
+        count += self.data.write(writer)?;
         Ok(count)
     }
 }

@@ -7,6 +7,7 @@ use crate::matrix::MP4Matrix;
 use crate::full_box;
 use crate::types::date::Mp4DateTime;
 use crate::types::duration::Mp4Duration;
+use fixed::types::I16F16;
 
 bitregions! {
     pub TrakFlags u32 {
@@ -38,8 +39,8 @@ full_box! {
         volume: I8F8,
         _r3: u16,
         matrix: MP4Matrix,
-        width: u32,
-        height: u32
+        width: I16F16,
+        height: I16F16
     }
 }
 
@@ -58,8 +59,8 @@ impl Default for Tkhd {
             volume: fixed!(1: I8F8),
             _r3:  Default::default(),
             matrix: Default::default(),
-            width: 0,
-            height: 0
+            width: fixed!(0: I16F16),
+            height: fixed!(0: I16F16)
         }
     }
 }

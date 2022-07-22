@@ -1,5 +1,4 @@
 use futures::AsyncReadExt;
-use crate::{base_box};
 use crate::bytes_read::ReadMp4;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
 use crate::error::MP4Error;
@@ -28,11 +27,11 @@ impl ChannelMapping {
         })
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.stream_count.write(writer).await?;
-        count += self.coupled_count.write(writer).await?;
-        count += self.channel_mapping.write(writer).await?;
+        count += self.stream_count.write(writer)?;
+        count += self.coupled_count.write(writer)?;
+        count += self.channel_mapping.write(writer)?;
         Ok(count)
     }
 }
@@ -80,18 +79,18 @@ impl ChannelMappingFamily {
         })
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.get_channel_family().write(writer).await?;
+        count += self.get_channel_family().write(writer)?;
         count += match self {
             ChannelMappingFamily::Family0 { .. } => 0,
             ChannelMappingFamily::Family1(mapping) => {
                 debug_assert!(mapping.channel_mapping.len() <= 8, "Opus Family1 cannot have more than 8 output channels");
-                mapping.write(writer).await?
+                mapping.write(writer)?
             },
             ChannelMappingFamily::Unknown(mapping) => {
                 debug_assert!(mapping.channel_mapping.len() <= 255, "Opus Unknown Family cannot have more than 255 output channels");
-                mapping.write(writer).await?
+                mapping.write(writer)?
             },
         };
         Ok(count)
@@ -144,17 +143,16 @@ impl PartialBoxRead for DOps {
     }
 }
 
-#[async_trait::async_trait]
 impl PartialBoxWrite for DOps {
 
-    async fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.version.write(writer).await?;
-        count += self.channel_mapping_family.get_channel_count().write(writer).await?;
-        count += self.pre_skip.write(writer).await?;
-        count += self.input_sample_rate.write(writer).await?;
-        count += self.output_gain.write(writer).await?;
-        count += self.channel_mapping_family.write(writer).await?;
+        count += self.version.write(writer)?;
+        count += self.channel_mapping_family.get_channel_count().write(writer)?;
+        count += self.pre_skip.write(writer)?;
+        count += self.input_sample_rate.write(writer)?;
+        count += self.output_gain.write(writer)?;
+        count += self.channel_mapping_family.write(writer)?;
         Ok(count)
     }
 }

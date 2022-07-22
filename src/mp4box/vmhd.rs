@@ -9,17 +9,16 @@ use crate::error::MP4Error;
 pub struct VideoGraphicsMode(pub u16);
 
 impl VideoGraphicsMode {
-    const COPY: VideoGraphicsMode = VideoGraphicsMode(0);
+    pub const COPY: VideoGraphicsMode = VideoGraphicsMode(0);
 }
 
-#[async_trait]
 impl Mp4Writable for VideoGraphicsMode {
     fn byte_size(&self) -> usize {
         self.0.byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.0.write(writer).await
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.write(writer)
     }
 }
 #[async_trait]
@@ -50,8 +49,6 @@ impl Default for Vmhd {
 
 #[cfg(test)]
 mod test {
-    use std::io::SeekFrom;
-    use futures::AsyncSeekExt;
     use crate::bytes_read::Mp4Readable;
     use crate::error::MP4Error;
     use crate::header::BoxHeader;
@@ -63,10 +60,10 @@ mod test {
         futures::executor::block_on(async {
             let base = VmhdBox::default();
             let mut buf = vec![];
-            let mut cursor = futures::io::Cursor::new(&mut buf);
-            let pos = base.write(&mut cursor).await?;
+            let mut cursor = std::io::Cursor::new(&mut buf);
+            let pos = base.write(&mut cursor)?;
             assert_eq!(pos as u64, cursor.position());
-            cursor.seek(SeekFrom::Start(0)).await?;
+            let mut cursor = futures::io::Cursor::new(&mut buf);
             let header = BoxHeader::read(&mut cursor).await?;
             assert_eq!(header.id, Vmhd::ID);
             let new = VmhdBox::read(header, &mut cursor).await?;

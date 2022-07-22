@@ -23,7 +23,6 @@ impl<F: FlagTrait> Mp4VersionedReadable<F> for Mp4Duration {
     }
 }
 
-#[async_trait]
 impl<F: FlagTrait> Mp4VersionedWritable<F> for Mp4Duration {
     fn required_version(&self) -> u8 {
         if let Some(duration) = self.0 {
@@ -40,10 +39,10 @@ impl<F: FlagTrait> Mp4VersionedWritable<F> for Mp4Duration {
         }
     }
 
-    async fn versioned_write<W: WriteMp4>(&self, version: u8, _: F, writer: &mut W) -> Result<usize, MP4Error> {
+    fn versioned_write<W: WriteMp4>(&self, version: u8, _: F, writer: &mut W) -> Result<usize, MP4Error> {
         Ok(match version {
-            0 => if let Some(value) = self.0 { value as u32} else { u32::MAX }.write(writer).await?,
-            _ => if let Some(value) = self.0 { value } else { u64::MAX }.write(writer).await?
+            0 => if let Some(value) = self.0 { value as u32} else { u32::MAX }.write(writer)?,
+            _ => if let Some(value) = self.0 { value } else { u64::MAX }.write(writer)?
         })
     }
 }

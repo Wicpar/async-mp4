@@ -15,3 +15,11 @@ full_box! {
         samples: Mp4Array<u32, SttsEntry>
     }
 }
+
+impl Default for Stts {
+    fn default() -> Self {
+        Self {
+            samples: Default::default()
+        }
+    }
+}

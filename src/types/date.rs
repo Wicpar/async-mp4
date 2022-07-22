@@ -38,7 +38,6 @@ impl<F: FlagTrait> Mp4VersionedReadable<F> for Mp4DateTime {
     }
 }
 
-#[async_trait]
 impl<F: FlagTrait> Mp4VersionedWritable<F> for Mp4DateTime {
     fn required_version(&self) -> u8 {
         <VersionedU32U64 as Mp4VersionedWritable<F>>::required_version(&self.0)
@@ -48,7 +47,7 @@ impl<F: FlagTrait> Mp4VersionedWritable<F> for Mp4DateTime {
         self.0.versioned_byte_size(version, flags)
     }
 
-    async fn versioned_write<W: WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, MP4Error> {
-        self.0.versioned_write(version, flags, writer).await
+    fn versioned_write<W: WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.versioned_write(version, flags, writer)
     }
 }

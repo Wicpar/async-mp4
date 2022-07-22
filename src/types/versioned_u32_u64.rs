@@ -43,7 +43,6 @@ impl<F: FlagTrait> Mp4VersionedReadable<F> for VersionedU32U64 {
     }
 }
 
-#[async_trait]
 impl<F: FlagTrait> Mp4VersionedWritable<F> for VersionedU32U64 {
     fn required_version(&self) -> u8 {
         if self.0 >= u32::MAX as u64 { 1 } else { 0 }
@@ -56,10 +55,10 @@ impl<F: FlagTrait> Mp4VersionedWritable<F> for VersionedU32U64 {
         }
     }
 
-    async fn versioned_write<W: WriteMp4>(&self, version: u8, _: F, writer: &mut W) -> Result<usize, MP4Error> {
+    fn versioned_write<W: WriteMp4>(&self, version: u8, _: F, writer: &mut W) -> Result<usize, MP4Error> {
         Ok(match version {
-            0 => (self.0 as u32).write(writer).await?,
-            _ => self.0.write(writer).await?
+            0 => (self.0 as u32).write(writer)?,
+            _ => self.0.write(writer)?
         })
     }
 }

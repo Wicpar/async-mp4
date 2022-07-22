@@ -1,9 +1,10 @@
-use std::ops::{Deref};
+use std::ops::{Deref, DerefMut};
 use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use async_trait::async_trait;
 use crate::bytes_read::{Mp4Readable, ReadMp4};
 use crate::bytes_write::{FlagTrait, Mp4Writable, WriteMp4};
+use crate::mp4box::box_root::MP4Box;
 use crate::mp4box::box_trait::{PartialBox, PartialBoxRead, PartialBoxWrite};
 use crate::r#type::BoxType;
 
@@ -22,17 +23,16 @@ impl<F: FlagTrait> Mp4Readable for FullBoxData<F> {
     }
 }
 
-#[async_trait]
 impl<F: FlagTrait> Mp4Writable for FullBoxData<F> {
-    
+
     fn byte_size(&self) -> usize {
         4
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
-        count += self.version.write(writer).await?;
-        count += writer.write_u24(self.flags.into()).await?;
+        count += self.version.write(writer)?;
+        count += writer.write_u24(self.flags.into())?;
         Ok(count)
     }
 }
@@ -52,13 +52,13 @@ pub struct FullBox<P, F>
     pub inner: P,
 }
 
-impl<P, F> From<P> for FullBox<P, F>
+impl<P, F> From<P> for MP4Box<FullBox<P, F>>
     where
         P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
         F: FlagTrait
 {
     fn from(inner: P) -> Self {
-        Self{inner}
+        Self{inner: FullBox {inner}}
     }
 }
 
@@ -92,22 +92,21 @@ impl<P, F> PartialBoxRead for FullBox<P, F> where
     }
 }
 
-#[async_trait]
 impl<P, F> PartialBoxWrite for FullBox<P, F> where
     P: PartialBox<ParentData=FullBoxData<F>> + PartialBoxWrite + FullBoxInfo<Flag=F> + Send + Sync,
     F: FlagTrait, {
 
-    async fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+    fn write_data<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         let mut count = 0;
         let version = self.inner.version();
         let flags = self.inner.flags();
-        count += FullBoxData::<F>{ version, flags }.write(writer).await?;
-        count += self.inner.write_data(writer).await?;
+        count += FullBoxData::<F>{ version, flags }.write(writer)?;
+        count += self.inner.write_data(writer)?;
         Ok(count)
     }
 
-    async fn write_children<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.inner.write_children(writer).await
+    fn write_children<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.inner.write_children(writer)
     }
 }
 
@@ -122,3 +121,15 @@ impl<P, F> Deref for FullBox<P, F>
         &self.inner
     }
 }
+
+impl<P, F> DerefMut for FullBox<P, F>
+    where
+        P: PartialBox<ParentData=FullBoxData<F>> + FullBoxInfo,
+        F: FlagTrait,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+

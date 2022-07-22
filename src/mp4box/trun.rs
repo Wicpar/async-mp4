@@ -25,7 +25,7 @@ impl Hash for TrunFlags {
 
 flag_option! {
     #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
-    pub struct TrunDataOffset(pub u64, TrunFlags, HAS_DATA_OFFSET);
+    pub struct TrunDataOffset(pub u32, TrunFlags, HAS_DATA_OFFSET);
 }
 
 flag_option! {
@@ -76,4 +76,56 @@ full_box! {
     data {
         entries: Mp4VersionedOffsetArray<u32, TrunOffset, TrunEntry>
     }
+}
+
+impl Default for Trun {
+    fn default() -> Self {
+        Self {
+            entries: Default::default()
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::bytes_read::Mp4Readable;
+    use crate::error::MP4Error;
+    use crate::header::BoxHeader;
+    use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox};
+    use crate::mp4box::trun::{Trun, TrunBox, TrunDataOffset, TrunEntry, TrunOffset, TrunSampleSize};
+    use crate::types::array::Mp4VersionedOffsetArray;
+    use crate::mp4box::trex::SampleFlags;
+
+    #[test]
+    pub fn test_rebuild() -> Result<(), MP4Error> {
+        futures::executor::block_on(async {
+            let base: TrunBox = Trun {
+                entries: Mp4VersionedOffsetArray {
+                    data: vec![TrunEntry {
+                        sample_duration: 32u32.into(),
+                        sample_size: TrunSampleSize::from(100000u32),
+                        sample_flags: SampleFlags::from(37814272).into(),
+                        sample_composition_time_offset: Default::default()
+                    }],
+                    offset: TrunOffset {
+                        data_offset: TrunDataOffset(Some(100)),
+                        first_sample_flags: Default::default()
+                    },
+                    _p: Default::default()
+                }
+            }.into();
+            let mut buf = vec![];
+            let mut cursor = std::io::Cursor::new(&mut buf);
+            let pos = base.write(&mut cursor)?;
+            assert_eq!(pos, base.byte_size());
+            assert_eq!(pos as u64, cursor.position());
+            let mut cursor = futures::io::Cursor::new(&mut buf);
+            let header = BoxHeader::read(&mut cursor).await?;
+            assert_eq!(header.id, TrunBox::ID);
+            let new = TrunBox::read(header, &mut cursor).await?;
+            assert_eq!(base, new);
+            Ok(())
+        })
+    }
+
 }

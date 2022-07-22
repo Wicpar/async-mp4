@@ -50,22 +50,21 @@ macro_rules! base_box {
         }
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
-        #[async_trait::async_trait]
         impl $crate::mp4box::box_trait::PartialBoxWrite for $name {
 
-            async fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
                 use $crate::bytes_write::Mp4Writable;
-                $($(count += self.$data_name.write(writer).await?;)*)?
+                $($(count += self.$data_name.write(writer)?;)*)?
                 Ok(count)
             }
 
 
-            async fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;
-                $($(count += self.$child_name.write(writer).await?;)*)?
+                $($(count += self.$child_name.write(writer)?;)*)?
                 Ok(count)
             }
         }
@@ -173,25 +172,24 @@ macro_rules! full_box {
         }
 
         #[allow(unused_variables, unused_mut, dead_code, unused_imports)]
-        #[async_trait::async_trait]
         impl $crate::mp4box::box_trait::PartialBoxWrite for $name {
 
-            async fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write_data<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::bytes_write::Mp4VersionedWritable;
                 use $crate::mp4box::box_full::FullBoxInfo;
                 let version = self.version();
                 let flags = self.flags();
                 let mut count = 0;
-                $($(count += self.$data_name.versioned_write(version, flags, writer).await?;)*)?
+                $($(count += self.$data_name.versioned_write(version, flags, writer)?;)*)?
                 Ok(count)
             }
 
-            async fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write_children<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 #![allow(unused_imports)]
                 use $crate::mp4box::box_trait::BoxWrite;
                 let mut count = 0;
-                $($(count += self.$child_name.write(writer).await?;)*)?
+                $($(count += self.$child_name.write(writer)?;)*)?
                 Ok(count)
             }
         }
@@ -279,17 +277,16 @@ macro_rules! mp4_data {
         }
 
         #[allow(unused_variables, unused_mut, dead_code)]
-        #[async_trait::async_trait]
         impl $crate::bytes_write::Mp4Writable for $name {
             fn byte_size(&self) -> usize {
                 let mut count = 0;
-                count += $(self.$data_name.byte_size();)*
+                $(count += self.$data_name.byte_size();)*
                 count
             }
 
-            async fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
-                count += $(self.$data_name.write(writer).await?;)*
+                $(count += self.$data_name.write(writer)?;)*
                 Ok(count)
             }
         }
@@ -314,7 +311,6 @@ macro_rules! mp4_data {
         }
 
         #[allow(unused_variables, unused_mut, dead_code)]
-        #[async_trait::async_trait]
         impl $crate::bytes_write::Mp4Writable for $name {
             fn byte_size(&self) -> usize {
                 let mut count = 0;
@@ -322,7 +318,7 @@ macro_rules! mp4_data {
                 count
             }
 
-            async fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn write<W: $crate::bytes_write::WriteMp4>(&self, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
                 mp4_data!(@write count, self, writer, $($data),*);
                 Ok(count)
@@ -353,21 +349,21 @@ macro_rules! mp4_data {
     (@write $count:ident, $self:ident, $writer:ident) => {};
 
     (@write $count:ident, $self:ident, $writer:ident, $data:ty) => {
-        $count += $self.0.write($writer).await?;
+        $count += $self.0.write($writer)?;
     };
 
     (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty) => {
         mp4_data!(@bytes $count, $data);
-        $count += $self.1.write($writer).await?;
+        $count += $self.1.write($writer)?;
     };
 
     (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty) => {
         mp4_data!(@bytes $count, $data, $data2);
-        $count += $self.2.write($writer).await?;
+        $count += $self.2.write($writer)?;
     };
     (@write $count:ident, $self:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
         mp4_data!(@bytes $count, $data, $data2, $data3);
-        $count += $self.3.write($writer).await?;
+        $count += $self.3.write($writer)?;
     };
 }
 
@@ -391,7 +387,6 @@ macro_rules! mp4_versioned_data {
         }
 
         #[allow(unused_variables, unused_mut, dead_code)]
-        #[async_trait::async_trait]
         impl<F: $crate::bytes_write::FlagTrait> $crate::bytes_write::Mp4VersionedWritable<F> for $name where $($data: $crate::bytes_write::Mp4VersionedWritable<F>),* {
 
             fn required_version(&self) -> u8 {
@@ -404,13 +399,13 @@ macro_rules! mp4_versioned_data {
 
             fn versioned_byte_size(&self, version: u8, flags: F) -> usize {
                 let mut count = 0;
-                count += $(self.$data_name.versioned_byte_size(version, flags);)*
+                $(count += self.$data_name.versioned_byte_size(version, flags);)*
                 count
             }
 
-            async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
-                count += $(self.$data_name.versioned_write(version, flags, writer).await?;)*
+                $(count += self.$data_name.versioned_write(version, flags, writer)?;)*
                 Ok(count)
             }
         }
@@ -443,7 +438,7 @@ macro_rules! mp4_versioned_data {
                 count
             }
 
-            async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+            fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: F, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
                 let mut count = 0;
                 mp4_versioned_data!(@write count, self, version, flags, writer, $($data),*);
                 Ok(count)
@@ -474,21 +469,21 @@ macro_rules! mp4_versioned_data {
     (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident) => {};
 
     (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty) => {
-        $count += $self.0.versioned_write($version, $flags, $writer).await?;
+        $count += $self.0.versioned_write($version, $flags, $writer)?;
     };
 
     (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty) => {
         mp4_data!(@bytes $count, $data);
-        $count += $self.1.versioned_write($version, $flags, $writer).await?;
+        $count += $self.1.versioned_write($version, $flags, $writer)?;
     };
 
     (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty) => {
         mp4_data!(@bytes $count, $data, $data2);
-        $count += $self.2.versioned_write($version, $flags, $writer).await?;
+        $count += $self.2.versioned_write($version, $flags, $writer)?;
     };
     (@write $count:ident, $self:ident, $version:ident, $flags:ident, $writer:ident, $data:ty, $data2:ty, $data3:ty, $data4:ty) => {
         mp4_data!(@bytes $count, $data, $data2, $data3);
-        $count += $self.3.versioned_write($version, $flags, $writer).await?;
+        $count += $self.3.versioned_write($version, $flags, $writer)?;
     };
 }
 
@@ -529,7 +524,6 @@ macro_rules! flag_option {
                 }
             }
 
-            #[async_trait::async_trait]
             impl $crate::bytes_write::Mp4VersionedWritable<$flag> for $name {
                 fn required_flags(&self) -> $flag {
                     match self.0 { None => <$flag>::default(), Some(_) => <$flag>::[<with_ $value:lower>]() }
@@ -539,8 +533,8 @@ macro_rules! flag_option {
                     if flags.[<$value:lower>]() { self.0.unwrap_or_default().versioned_byte_size(version, flags) } else { 0 }
                 }
 
-                async fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: $flag, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
-                    Ok(if flags.[<$value:lower>]() { self.0.unwrap_or_default().versioned_write(version, flags, writer).await? } else { 0 })
+                fn versioned_write<W: $crate::bytes_write::WriteMp4>(&self, version: u8, flags: $flag, writer: &mut W) -> Result<usize, $crate::error::MP4Error> {
+                    Ok(if flags.[<$value:lower>]() { self.0.unwrap_or_default().versioned_write(version, flags, writer)? } else { 0 })
                 }
             }
         }

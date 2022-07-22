@@ -6,7 +6,13 @@ use async_trait::async_trait;
 use crate::bytes_write::{Mp4Writable, WriteMp4};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct PaddedByte<const N: usize, const V: usize = 1>(u8);
+pub struct PaddedByte<const N: usize, const V: usize = 0>(u8);
+
+impl<const N: usize, const V: usize> Default for PaddedByte<N, V> {
+    fn default() -> Self {
+        Self::from(0)
+    }
+}
 
 impl<const N: usize, const V: usize> AsPrimitive<usize> for PaddedByte<N, V> {
     fn as_(self) -> usize {
@@ -41,14 +47,13 @@ impl<const N: usize, const V: usize> Mp4Readable for PaddedByte<N, V> {
     }
 }
 
-#[async_trait]
 impl<const N: usize, const V: usize> Mp4Writable for PaddedByte<N, V> {
     fn byte_size(&self) -> usize {
         self.0.byte_size()
     }
 
-    async fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
-        self.0.write(writer).await
+    fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
+        self.0.write(writer)
     }
 }
 
@@ -74,4 +79,16 @@ impl<const N: usize, const V: usize> AsPrimitive<PaddedByte<N, V>> for u8 {
     fn as_(self) -> PaddedByte<N, V> {
         PaddedByte::<N, V>(self & PaddedByte::<N, V>::MASK | PaddedByte::<N, V>::PAD)
     }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::types::padded_byte::PaddedByte;
+
+    #[test]
+    fn test_mask() {
+        assert_eq!(PaddedByte::<6, 1>::from(0).0, 0b11111100);
+        assert_eq!(PaddedByte::<6, 1>::from(3).0, 0b11111111);
+    }
+
 }
