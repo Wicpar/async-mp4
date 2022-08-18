@@ -8,10 +8,12 @@ use crate::error::MP4Error;
 use crate::header::BoxHeader;
 use crate::mp4box::avc1::{Avc1Box};
 use crate::mp4box::box_trait::{BoxRead, BoxWrite, IBox};
+use crate::mp4box::opus::OpusBox;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum StsdSampleEntry {
     Avc1(Avc1Box),
+    Opus(OpusBox),
     Unknown(UnknownBox),
 }
 
@@ -21,6 +23,7 @@ impl Mp4Readable for StsdSampleEntry {
         let header: BoxHeader = reader.read().await?;
         Ok(match header.id {
             Avc1Box::ID => Self::Avc1(<Avc1Box as BoxRead>::read(header, reader).await?),
+            OpusBox::ID => Self::Opus(<OpusBox as BoxRead>::read(header, reader).await?),
             _ => Self::Unknown(<UnknownBox as BoxRead>::read(header, reader).await?)
         })
     }
@@ -30,6 +33,7 @@ impl Mp4Writable for StsdSampleEntry {
     fn byte_size(&self) -> usize {
         match self {
             StsdSampleEntry::Avc1(it) => it.byte_size(),
+            StsdSampleEntry::Opus(it) => it.byte_size(),
             StsdSampleEntry::Unknown(it) => it.byte_size()
         }
     }
@@ -37,6 +41,7 @@ impl Mp4Writable for StsdSampleEntry {
     fn write<W: WriteMp4>(&self, writer: &mut W) -> Result<usize, MP4Error> {
         match self {
             StsdSampleEntry::Avc1(it) => it.write(writer),
+            StsdSampleEntry::Opus(it) => it.write(writer),
             StsdSampleEntry::Unknown(it) => it.write(writer)
         }
     }

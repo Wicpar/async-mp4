@@ -153,7 +153,7 @@ impl <T: Mp4Writable + Send + Sync> Mp4Writable for Vec<T> {
     }
 }
 
-pub trait WriteMp4: Write + Unpin + Send + Sync + Sized {
+pub trait WriteMp4: Write + Sized {
 
     #[inline]
     fn write_u24(&mut self, n: u32) -> Result<usize, MP4Error> {
@@ -168,4 +168,4 @@ pub trait WriteMp4: Write + Unpin + Send + Sync + Sized {
     }
 }
 
-impl<T: Write + Unpin + Send + Sync> WriteMp4 for T {}
+impl<T: Write> WriteMp4 for T {}

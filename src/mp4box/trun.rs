@@ -25,7 +25,7 @@ impl Hash for TrunFlags {
 
 flag_option! {
     #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
-    pub struct TrunDataOffset(pub u32, TrunFlags, HAS_DATA_OFFSET);
+    pub struct TrunDataOffset(pub i32, TrunFlags, HAS_DATA_OFFSET);
 }
 
 flag_option! {

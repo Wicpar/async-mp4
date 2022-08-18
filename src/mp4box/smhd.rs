@@ -8,3 +8,12 @@ full_box! {
         _r1: u16
     }
 }
+
+impl Default for Smhd {
+    fn default() -> Self {
+        Self {
+            balance: Default::default(),
+            _r1: 0
+        }
+    }
+}
