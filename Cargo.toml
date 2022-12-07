@@ -1,6 +1,6 @@
 [package]
 name = "async-mp4"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Frédéric Nieto <frederic.artus.nieto@gmail.com>"]
 description = "Async Mp4 Muxer and Demuxer in pure rust"
